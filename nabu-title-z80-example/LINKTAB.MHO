@@ -1,0 +1,226 @@
+;
+;**************************************************************************
+;
+;
+;	ROUTINE NAME:		LNKTB
+;
+;------------------------------------------
+;
+;	FILE NAME:		LINKTAB.MHO
+;
+;	DESCRIPTION:
+;		LNKTB is a driver table used by the IOS to establish
+;		user access to IOS routines. The table must exist if
+;		any of the IOS routines are to be used. Before the routines
+;		may be accessed, the table must be initialized. The
+;		initialization is done through a CPM call. The call
+;		is in macro form in COMMON.MRO. To initialize the table
+;		via the macro, the following call is needed:
+;
+;			CPMCALL		090H, LNKTB
+;		The call must appear before accessing any of the 
+;		routines.
+;
+;		The table consists of all the IOS routines associated with
+;		VDP, windows and cursors, and attaching tasks to the
+;		clock interrupt. To use the table, delete any entries which 
+;		are not called by your software. This leaves only the 
+;		routines accessed by your code.
+;
+;		After the unused entries are deleted, the table must be
+;		assembled and the assembled version included in the 
+;		final link of the application.
+;
+;	AUTHOR:			Trevor Pearce
+;	DATE and ISSUE:		August 19, 1982  Version 1.2
+;	CATALOGUE ID:		HCF - AS - 0051
+;
+;	PARAMETERS PASSED:
+LNKTB::
+	DB		(TABEND-TABSTRT)/3 ; Do not delete this line
+ ;
+TABSTRT:				; Do not delete this line
+ ;
+REGRD::
+VREGRD::	DB		00H,0,0
+ ;
+VTABR::
+VTABRD::	DB		01H,0,0
+ ;
+CRBEG::		DB		02H,0,0
+ ;
+CREND::		DB		03H,0,0
+ ;
+REGWR::
+VREGWR::	DB		04H,0,0
+ ;
+STATR::
+VSTATRD::	DB		05H,0,0
+ ;
+NAMST::
+VNAMEST::	DB		06H,0,0
+ ;
+COLST::
+VCOLRST::	DB		07H,0,0
+ ;
+PTRST::
+VPTRNST::	DB		08H,0,0
+ ;
+ATRST::
+VATRIST::	DB		09H,0,0
+ ;
+SPRST::
+VSPRIST::	DB		0AH,0,0
+ ;
+BLKON::
+VBLKON::	DB		0BH,0,0
+ ;
+BLKOF::
+VBLKOFF::	DB		0CH,0,0
+ ;
+RAMRD::
+VRAMRD::	DB		0DH,0,0
+ ;
+RAMWR::
+VRAMWR::	DB		0EH,0,0
+ ;
+FSTL8::
+FASTL8::	DB		0FH,0,0
+ ;
+FSTLD::
+FASTLD::	DB		010H,0,0
+ ;
+FSTD8::
+FASTD8::	DB		011H,0,0
+ ;
+FSTDU::
+FASTDU::	DB		012H,0,0
+ ;
+RAML8::
+VRAML8::	DB		013H,0,0
+ ;
+RAMLD::
+VRAMLD::	DB		014H,0,0
+ ;
+RAMD8::
+VRAMD8::	DB		015H,0,0
+ ;
+RAMDU::
+VRAMDU::	DB		016H,0,0
+ ;
+SPMAR::
+SPMARK::	DB		017H,0,0
+ ;
+SPMOV::
+SPMOVE::	DB		018H,0,0
+ ;
+SPCOL::
+SPCOLR::	DB		019H,0,0
+ ;
+SPNAM::
+SPNAME::	DB		01AH,0,0
+ ;
+RPATR::
+RPATRN::	DB		01BH,0,0
+ ;
+LPATR::
+LPATRN::	DB		01CH,0,0
+ ;
+CHADR::		DB		01DH,0,0
+ ;
+VFILL::		DB		01EH,0,0
+ ;
+XYLOC::		DB		01FH,0,0
+ ;
+PUTPA::
+PUTPAT::	DB		020H,0,0
+ ;
+GETPA::
+GETPAT::	DB		021H,0,0
+ ;
+SETMS::
+SETMSG::	DB		022H,0,0
+ ;
+PUTMS::
+PUTMSG::	DB		023H,0,0
+ ;
+GETMS::
+GETMSG::	DB		024H,0,0
+ ;
+SETTX::
+VSETTXT::	DB		025H,0,0
+ ;
+SETG1::
+VSETG1::	DB		026H,0,0
+ ;
+SETG2::
+VSETG2::	DB		027H,0,0
+ ;
+SETSP::
+VSETSPA::	DB		028H,0,0
+ ;
+MUL88::		DB		029H,0,0
+ ;
+WINDO::
+WINDOW::	DB		02AH,0,0
+ ;
+CLSEW::
+CLOSEWINDOW::	DB		02BH,0,0
+ ;
+SETCU::
+SETCURSOR::	DB		02CH,0,0
+ ;
+GOTOX::
+GOTOXY::	DB		02DH,0,0
+ ;
+PUTCH::
+PUTCHAR::	DB		02EH,0,0
+ ;
+UPSCR::
+UPSCROLL::	DB		02FH,0,0
+ ;
+DOWNS::
+DOWNSCROLL::	DB		030H,0,0
+ ;
+LEFTS::
+LEFTSCROLL::	DB		031H,0,0
+ ;
+RIGHT::
+RIGHTSCROLL::	DB		032H,0,0
+ ;
+FILLA::
+FILLAREA::	DB		033H,0,0
+ ;
+DUMBT::		DB		034H,0,0
+ ;
+AUDRD::
+AUDIORD::	DB		035H,0,0
+ ;
+AUDWR::
+AUDIOWR::	DB		036H,0,0
+ ;
+CLKPR::
+CLKPRM::	DB		037H,0,0
+ ;
+HOINT::
+HOINIT::	DB		038H,0,0
+ ;
+CREGW::
+CREGWR::	DB		039H,0,0
+ ;
+VMOVI::		DB		03AH,0,0
+;
+VMOVD::		DB		03BH,0,0
+;
+FASTRD::
+FASTR::		DB		03CH,0,0
+;
+FASTWR::
+FASTW::		DB		03DH,0,0
+;
+SETMSK::	DB		03EH,0,0
+;
+ ;
+TABEND:	; Do not delete this line
+ ;
+		END

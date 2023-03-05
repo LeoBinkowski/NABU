@@ -1,0 +1,11 @@
+; BUILD.SUB to make this example
+; assemble each needed component
+; Author: Leo Binkowski
+m80 =open
+m80 =linktab.mho
+m80 =pceng
+m80 =nabulogo
+; link components into OPEN.COM
+l80 open,pceng,nabulogo,linktab,OPEN/N/Y/E:OPEN
+; packetize open.com into PAC-MAN segment loadable from local folder
+cabuild open.com 110
