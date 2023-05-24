@@ -1,0 +1,255 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:           LUDES.MAC                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      this file contains the first intermission                *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Schening, L. Binkowski                      *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*    02   19 OCT 83	L. Binkowski	no PACMAN appear on side *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 		.Z80
+		.RADIX 10
+		.XLIST
+		INCLUDE CLKAT.MRO
+		INCLUDE	LINKTAB.EXA
+		INCLUDE COMMON.MRO
+		INCLUDE STRUCT.MRO
+		INCLUDE ARITH.MRO
+		.LIST
+;
+	EXTRN INTSP,PACCOL,MUSICTCB,MUSIC,OFF
+;		
+	LUDTCB::  DB  0,0,0,0,0,0	;TASK CONTROL BLOCKS FOR THE TWO TASKS
+	GHOTCB::  DB  0,0,0,0,0,0
+	INCR:	DB	02H		;INCREMENT IN X FOR BIG PACMAN
+	X2:	DB	0FBH		;X COORD'S FOR 4 SPRITES OF BIG PAC
+	X3:	DB	0BH
+	X4:	DB	0FBH
+	X6:	DB	0BH
+	FFF:	DB	00		;TEMPORARY FLAG
+	COUNT:	DB	00		;A DELAY FLAG
+	PAUSE:	DB	00
+	BIGP3:	DB	098H		;TOP & BOTTOM SPRITE PATTERNS FOR BIGP
+	BIGP6:	DB	09CH
+	ENDFLG::DB	00		;STOP EXECUTING TASK FLAG AT END
+	PX:	DB	0F5H		;PACMAN'S X COORD'S
+	PMTH:	DB	00		;PACMAN'S MOUTH POSITION
+	BX:	DB	0FBH		;BLINKY'S X COORD
+	BPAT:	DB	050H		;CURRENT BLINKY PATTERN
+	PPAT:	DB	020H		;CURRENT PACMAN PATTERN
+	BDIR:	DB	020H		;CURRENT BLINKY DIRECTION (20H IS LEFT)
+	PDIR:	DB	020H		;CURRENT PACMAN DIRECTION (0H IS RIGHT)
+	CHECK:	DB	00H		;FLAG THAT MEANS ON RIGHT OF SCREEN
+;
+CONTROL::	
+		PCALL	VBLKON
+;		PCALL	CLKPRM,007H,00H		;DISABLE TASKS
+;		PCALL	VSETG1
+;		PCALL	VNAMEST,3800H
+;		PCALL	VPTRNST,0H
+;		PCALL	VCOLRST,2000H
+		PCALL	VSPRIST,2800H
+;		PCALL	VATRIST,3C00H
+;		PCALL	RPATRN,PACBOARD
+;		PCALL	VFILL,300H,20H,3800H
+		PCALL	LPATRN,INTSP,2800H
+;		PCALL	VRAML8,20H,PACCOL,2000H
+;
+		PCALL	SPMARK,7
+;
+		PCALL	SPMOVE,0,010H,0FDH
+;
+		PCALL	SPNAME,2,090H		;DEFINING BIG PACMAN SECTION
+		PCALL	SPNAME,3,(BIGP3)
+		PCALL	SPNAME,4,094H
+		PCALL	SPNAME,6,(BIGP6)
+		PCALL	SPCOLR,2,CLEAR
+		PCALL	SPCOLR,3,CLEAR
+		PCALL	SPCOLR,4,CLEAR
+		PCALL	SPCOLR,6,CLEAR
+		PCALL	SPMOVE,2,10H,0FFH
+		PCALL	SPMOVE,3,10H,0FFH
+		PCALL	SPMOVE,4,10H,0FFH
+		PCALL	SPMOVE,6,10H,0FFH
+;
+		PCALL	SPNAME,1,50H
+		PCALL	SPNAME,5,48H
+		PCALL	SPCOLR,1,DRED		;SPRITE 1 IS GHOST BODY
+		PCALL	SPCOLR,5,WHITE		;SPRITE 5 IS GHOST EYES
+		PCALL	SPMOVE,1,10H,0FFH
+		PCALL	SPMOVE,5,10H,0FFH
+;
+		SETCOLR BLACK,BLACK	;SMALL PAC DEFINITION IS LATER
+		PCALL	VSETSPA,1,0	;16X16 SIZE. ZERO MAG. ALL SPRITES
+		PCALL	SPCOLR,0,LYELLOW	;PACMAN SPRITE IS LIGHT YELLOW
+		SETSK	LUDES,LUDTCB,3,15	;EVERY 3 INTERUPTS. START IN 2
+		SETSK	LUDGHO,GHOTCB,3,150D
+;
+		SETSK	MUSIC,MUSICTCB,1,1
+;
+		PCALL	CLKPRM,004H,004H		;ENABLE TASKS
+		PCALL	VBLKOFF
+;
+LOOP:		IF8.	(ENDFLG),.EQ.,1
+		JP	STOP
+		ENDIF.
+		JP	LOOP
+;
+STOP:		CALL	OFF
+		ASIGN8.	(INCR),02H
+		ASIGN8.	(X2),0FBH
+		ASIGN8.	(X3),0BH
+		ASIGN8.	(X4),0FBH
+		ASIGN8.	(X6),0BH
+		ASIGN8.	(FFF),0
+		ASIGN8.	(COUNT),0
+		LD	(PAUSE),A
+		ASIGN8.	(BIGP3),098H
+		ASIGN8.	(BIGP6),09CH
+		ASIGN8. (PX),0F5H
+		ASIGN8.	(PMTH),0
+		ASIGN8.	(BX),0FBH
+		ASIGN8.	(BPAT),050H
+		ASIGN8.	(PPAT),020H
+		LD	(BDIR),A
+		LD	(PDIR),A
+		ASIGN8.	(CHECK),0
+		N.CLKRV LUDTCB
+		N.CLKRV GHOTCB
+		N.CLKRV MUSICTCB
+		RET
+;
+LUDES::		
+		IF8.	(PX),.EQ.,0FDH	;IF REACHED LEFT HAND SIDE OF
+		ADD8.	(COUNT),1	;IF BLINKY IS OFF SCREEN, SMALL DELAY
+		IF8.	(COUNT),.LE.,52
+		RET
+		ENDIF.
+		ASIGN8.	(COUNT),0
+		ASIGN8.	(PX),0
+		ASIGN8.	(FFF),1			;SCREEN, SET A FLAG
+		PCALL	SPMOVE,0,0C0H,0FDH	;GET ORIGINAL PACMAN SPRITE OFF
+		ENDIF.				;OFF THIS LINE
+;
+	IF8.	(FFF),.EQ.,1			;ADD 2 PIXELS TO X COORD FOR
+;
+		ADD8.	(X2),4			;THE 4 SPRITES OF BIG PACMAN
+		ADD8.	(X3),4
+		ADD8.	(X4),4
+		ADD8.	(X6),4
+;
+		LD	A,(BIGP3)		;IF MOUTH CLOSING,JUMP
+		CP	0B0H
+		JP	Z,CONT
+		ADD8.	(BIGP3),8		;OTHERWISE ADD 8 TO GET NEXT 
+		ADD8.	(BIGP6),8		;PATTERN OF MOUTH POSITION
+		JP	CONT1
+CONT:		ASIGN8.	(BIGP3),098H		;RESET MOUTH TO JUST OPENNING
+		ASIGN8.	(BIGP6),09CH
+CONT1:		PCALL	SPNAME,3,(BIGP3)
+		PCALL	SPNAME,6,(BIGP6)
+		PCALL	SPCOLR,2,LYELLOW
+		PCALL	SPCOLR,3,LYELLOW
+		PCALL	SPCOLR,4,LYELLOW
+		PCALL	SPCOLR,6,LYELLOW
+		PCALL	SPMOVE,2,065H,(X2)
+		PCALL	SPMOVE,3,065H,(X3)
+		PCALL	SPMOVE,4,075H,(X4)
+		PCALL	SPMOVE,6,075H,(X6)
+;
+		IF8.	(X3),.EQ.,0FFH		;ONLY HITS ON RIGHT OF SCREEN
+		PCALL	SPCOLR,3,0		;MAKE RIGHT MOST SPRITES CLEAR
+		PCALL	SPCOLR,6,0
+		ASIGN8.	(CHECK),1
+		ENDIF.
+		IF8.	(CHECK),.EQ.,1		;IF ON RIGHT SIDE OF SCREEN 
+		IF8.	(X2),.EQ.,0FFH		;WHEN IT HITS 0FFH, THEN STOP
+		PCALL	SPCOLR,2,0
+		PCALL	SPCOLR,4,0
+		ASIGN8.	(ENDFLG),1
+		ENDIF.
+		ENDIF.
+;
+		RET
+	ENDIF.
+;		
+		LD	A,(PMTH)	;GET MOUTH STATE
+		CP	0CH		;CLOSING?
+		JP	NZ,PACONT	;NO..CONTINUE
+		ASIGN8.	(PMTH),0FCH	;CLOSE MOUTH
+PACONT:		ADD8.	(PMTH),4	;INCREMENT MOUTH PATTERN
+		LD	A,(PMTH)
+		LD	C,A
+		LD	A,(PDIR)	;GET PACMAN DIRECTION
+		ADD	A,C		;ADD EM
+		LD	(PPAT),A	;PUT INTO PATTERN VECTOR
+		PCALL	SPNAME,0,(PPAT)	;ADJUST PATTERN
+		SUB8.	(PX),2
+		PCALL	SPMOVE,0,070H,(PX)
+;
+		RET
+;
+; GHOST MOVING PART
+;
+LUDGHO::
+		IF8.	(BX),.EQ.,0FFH
+		ASIGN8.	(BDIR),00H		;TOWARD RIGHT
+		PCALL	SPNAME,5,5CH		;SICK GHOST EYES (STAY WHITE)
+		PCALL	SPNAME,1,58H		;SICK GHOST SPRITE (NO WIGGLE)
+		PCALL	SPCOLR,1,DBLUE		;SICK GHOST COLOR
+		ENDIF.
+;  MOVING OF SICK GHOST
+;
+	     IF8. (BDIR),.EQ.,00
+		ADD8.	(PAUSE),1
+		IF8.	(PAUSE),.LE.,20
+		RET
+		ENDIF.
+		 IF8.	(BX),.EQ.,0FEH		;IF OFF RIGHT SIDE, DON'T MOVE
+		 RET
+		 ENDIF.
+;
+		 ADD8.	(BX),3			;MOVE RIGHT (ALWAYS 2 PIXELS)
+		 PCALL 	SPMOVE,1,070H,(BX)
+		 PCALL	SPMOVE,5,070H,(BX)
+;
+		 RET	
+		ENDIF.
+;
+		LD	A,(BPAT)
+		CP	50H
+		JP	NZ,BCG2
+		ASIGN8.	(BPAT),54H
+		JP	BCHG
+BCG2:		ASIGN8.	(BPAT),50H
+BCHG:		PCALL	SPNAME,1,(BPAT)
+		SUB8.	(BX),3
+		PCALL	SPMOVE,1,070H,(BX)
+		PCALL	SPMOVE,5,070H,(BX)	;EYES SPNAMED EARLIER
+;
+		RET
+;
+		END							

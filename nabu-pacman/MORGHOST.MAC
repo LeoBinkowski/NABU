@@ -1,0 +1,158 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        MORGHOST.MAC                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      this file contains some more ghost routines,including    *
+;*      the quadrant commands, and INKY's non facing routine.    *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*    02   26 OCT 83	L. Binkowski	Fixed spaz out bug	 *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 	.Z80
+	.RADIX	10
+	.XLIST
+	.PRINTX/MORE GHOST ROUTINES...SEPTEMBER 3, 1983/
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	PACMAN.EQU
+	.LIST
+	EXTRN	PACDIR,PACX,PACY,BLIDIR,BLIX,BLIY,PINDIR,PINX,PINY,INKDIR
+	EXTRN	INKX,INKY,CLYDIR,CLYX,CLYY,TMPX,TMPY,ABS,FRUTIMR
+	EXTRN	BLIST,PINST,INKST,CLYST
+BREV1F::DB	FALSE
+PREV1F::DB	FALSE
+IREV1F::DB	FALSE
+CREV1F::DB	FALSE
+ALREVF::DB	FALSE
+	;
+	; This file contains some more ghost routines for the advanced logic.
+	;
+FACEME::
+	;This routine will decide whether a ghost is facing pacman
+	;it will set the zero flag if not.
+	;
+	;Note: the ghost must be on the same line as the pacman.
+	;
+	;	Parameters passed:	C-	GHOST X ADDRESS
+	;				E-	GHOST DIRECTION
+	;
+	;	Parameters returned:	Zero flag	- set if no match
+	;
+	;
+	PUSH	DE
+	POP	IY
+	PUSH	BC
+	POP	IX
+	LD	C,(IX+1)
+	LD	DE,(PACY)
+	CALL	ABS			;SEE IF THEY ARE ON THE SAME LINE
+	CP	03H
+	JP	NC,YTRY			;NO...THEN SET THE ZERO FLAG AND RETURN.
+	IF8.	(PACDIR),.EQ.,00H
+	  IF8.  (IY),.EQ.,20H
+	    LD A,(PACX)
+	    LD C,A
+	    LD A,(IX)
+	    SUB C
+	    JP NC,SETNZ
+	  ENDIF.
+	ENDIF.
+	IF8.	(PACDIR),.EQ.,20H	;TRY THE OTHER DIRECTION COMBO
+	  IF8.	(IY),.EQ.,00H
+	    LD	A,(PACX)
+	    LD	C,(IX)
+	    SUB	C
+	    JP	NC,SETNZ
+	  ENDIF.
+	ENDIF.
+YTRY:	LD	C,(IX)
+	LD	DE,(PACX)
+	CALL	ABS
+	CP	03H
+	JR	NC,SETZERO
+	IF8.	(PACDIR),.EQ.,10H
+	  IF8.	(IY),.EQ.,30H
+	    LD	A,(PACY)
+	    LD	C,A
+	    LD	A,(IX+1)
+	    SUB	C
+	    JP	NC,SETNZ
+	  ENDIF.
+	ENDIF.
+	IF8.	(PACDIR),.EQ.,30H
+	  IF8.	(IY),.EQ.,10H
+	    LD	A,(PACY)
+	    LD	C,(IX+1)
+	    SUB	C
+	    JP	NC,SETNZ
+	  ENDIF.
+	ENDIF.
+SETZERO:
+	XOR	A		;SET ZERO FLAG
+	RET
+SETNZ:	LD	A,0FFH		;CLEAR ZERO FLAG
+	AND	A
+	RET
+	;
+QUADCOM::
+	IF8.	(FRUTIMR),.EQ.,7
+	  JP QUADEM
+	ENDIF.
+	IF8.	(FRUTIMR),.EQ.,14
+	  JP	QUADEM
+	ENDIF.
+	ASIGN8.	(ALREVF),FALSE
+	RET
+QUADEM:	
+;	LD	BC,(BLIST)	;MAKE SURE IT DOESN'T TRY TO SET THE FLAGS
+;	LD	A,(PINST)	;A MULTIPLE AMOUNT OF TIMES....
+;	OR	C
+;	LD	BC,(INKST)
+;	OR	C
+;	LD	BC,(CLYST)
+;	OR	C
+;	RET	NZ
+	IF8.	(ALREVF),.EQ.,TRUE
+	  RET
+	ENDIF.
+	ASIGN8.	(ALREVF),TRUE
+	IF8.	(BLIST),.EQ.,OK
+	  ASIGN8. (BLIST),GOQUAD
+	  ASIGN8. (BREV1F),TRUE
+	ENDIF.
+	IF8.	(PINST),.EQ.,OK
+	  ASIGN8. (PINST),GOQUAD
+	  ASIGN8. (PREV1F),TRUE
+	ENDIF.
+	IF8.	(INKST),.EQ.,OK
+	  ASIGN8. (INKST),GOQUAD
+	  ASIGN8. (IREV1F),TRUE
+	ENDIF.
+	IF8.	(CLYST),.EQ.,OK
+	  ASIGN8. (CLYST),GOQUAD
+	  ASIGN8. (CREV1F),TRUE
+	ENDIF.
+	RET
+	END

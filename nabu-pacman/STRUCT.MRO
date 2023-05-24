@@ -1,0 +1,300 @@
+          .Z80
+$NUMLAB   DEFL       0            
+$STKPTR   DEFL       0            
+$NEWCSE   DEFL       1            
+$SAVREG   DEFL       0            
+$STKOFF   DEFL       0
+$STKNXT   DEFL       0
+$CSELAB   DEFL       0
+$STK0     DEFL       0
+.EQ.      EQU        0
+.NE.      EQU        1
+.GT.      EQU        2
+.GE.      EQU        3
+.LT.      EQU        4
+.LE.      EQU        5
+$PUSH2    MACRO      VALUE, STKPTR
+$STK&STKPTR  DEFL    VALUE
+          ENDM
+$PUSH     MACRO      VALUE
+$STKPTR   DEFL       $STKPTR + 1
+          $PUSH2     VALUE, %$STKPTR
+          ENDM
+$POP2     MACRO      VALUE, STKPTR
+VALUE     DEFL       $STK&STKPTR          
+          ENDM
+$POP      MACRO      VALUE
+         IF $STKPTR EQ 0
+          .PRINTX /MACRO ERROR: MACRO STACK UNDERFLOW/
+         ELSE
+          $POP2      VALUE, %$STKPTR
+$STKPTR   DEFL       $STKPTR - 1
+         ENDIF
+         ENDM
+$INCLAB   MACRO
+          IF $NUMLAB GT 0FFFH
+          .PRINTX /MACRO ERROR: LABEL GENERATION OVERFLOW/
+          ELSE
+$NUMLAB   DEFL       $NUMLAB + 1
+          ENDIF
+          ENDM
+$GENLAB   MACRO      VALUE
+$L&VALUE:
+          ENDM
+$GENJP    MACRO      COND, LABEL
+          IFB  <COND>
+           JP        $L&LABEL
+          ELSE
+           IF COND EQ .EQ.
+            JP        NZ, $L&LABEL
+           ENDIF
+           IF COND EQ .NE.
+            JP         Z, $L&LABEL
+           ENDIF
+           IF (COND EQ .GE.) OR (COND EQ .LE.)
+            JP         C, $L&LABEL
+           ENDIF
+           IF (COND EQ .GT.) OR (COND EQ .LT.)
+            JP        NC, $L&LABEL
+           ENDIF
+          ENDIF
+          ENDM
+IF8.      MACRO      PARM1, COND, PARM2
+          IF $SAVREG
+           PUSH      BC
+          ENDIF
+          $INCLAB                 
+          $PUSH      %$NUMLAB     
+          IF (COND EQ .GT.) OR (COND EQ .LE.)
+           LD        A,PARM1      
+           LD        C,A          
+           LD        A,PARM2      
+          ELSE
+           LD        A,PARM2
+           LD        C,A          
+           LD        A,PARM1      
+          ENDIF
+          CP         C            
+          IF         $SAVREG
+           POP       BC
+          ENDIF
+          $GENJP     COND, %$NUMLAB
+                                  
+          ENDM
+THEN.     MACRO
+          ENDM
+ELSE.     MACRO
+          $INCLAB                 
+          $GENJP     , %$NUMLAB   
+                                  
+          $POP       $STKOFF      
+                                  
+          $GENLAB    %$STKOFF     
+          $PUSH      %$NUMLAB     
+          ENDM
+ENDIF.    MACRO
+          $POP       $STKOFF      
+          $GENLAB    %$STKOFF     
+          ENDM
+WHILE8.   MACRO      PARM1, COND, PARM2
+          $INCLAB                 
+          $GENLAB    %$NUMLAB     
+          $PUSH      %$NUMLAB     
+          IF8.       PARM1, COND, PARM2
+                                  
+          ENDM
+ENDW.     MACRO
+          $POP       $STKNXT      
+          $POP       $STKOFF      
+          $GENJP     ,%$STKOFF    
+          $GENLAB    %$STKNXT     
+          ENDM
+REPEAT.   MACRO
+          $INCLAB                 
+          $PUSH      %$NUMLAB     
+          $GENLAB    %$NUMLAB     
+          ENDM
+UNTIL8.   MACRO      PARM1, COND, PARM2
+          IF        $SAVREG
+           PUSH     BC
+          ENDIF
+          IF (COND EQ .GT.) OR (COND EQ .LE.)
+           LD        A,PARM1
+           LD        C,A
+           LD        A,PARM2
+          ELSE
+           LD        A,PARM2
+           LD        C,A
+           LD        A,PARM1
+          ENDIF
+          CP         C            
+          IF         $SAVREG
+           POP       BC
+          ENDIF
+          $POP       $STKOFF      
+          $GENJP     COND, %$STKOFF
+                                  
+          ENDM
+IF16.     MACRO      PARM1, COND, PARM2
+          IF         $SAVREG
+           PUSH      BC
+           PUSH      HL
+          ENDIF
+          $INCLAB                 
+          $PUSH      %$NUMLAB     
+          SCF
+          CCF                     
+          IF (COND EQ .GT.) OR (COND EQ .LE.)
+           LD        BC, PARM1
+           LD        HL, PARM2
+          ELSE
+           LD        BC, PARM2
+           LD        HL, PARM1
+          ENDIF
+          SBC        HL, BC       
+          IF         $SAVREG
+           POP       HL
+           POP       BC
+          ENDIF
+          $GENJP     COND, %$NUMLAB
+                                  
+          ENDM
+WHILE16.  MACRO      PARM1, COND, PARM2
+          $INCLAB                 
+          $GENLAB    %$NUMLAB     
+          $PUSH      %$NUMLAB     
+          IF16.      PARM1, COND, PARM2
+                                  
+          ENDM
+UNTIL16.  MACRO      PARM1, COND, PARM2
+          IF         $SAVREG
+           PUSH      BC
+           PUSH      HL
+          ENDIF
+          SCF
+          CCF                     
+          IF (COND EQ .GT.) OR (COND EQ .LE.)
+           LD        BC, PARM1
+           LD        HL, PARM2
+          ELSE         
+           LD        BC, PARM2
+           LD        HL, PARM1
+          ENDIF
+          SBC        HL, BC       
+          IF         $SAVREG
+           POP       HL
+           POP       BC
+          ENDIF
+          $POP       $STKOFF      
+          $GENJP     COND, %$STKOFF
+                                  
+          ENDM
+$GENLD    MACRO      VALUE
+          LD         HL, $L&VALUE
+          ENDM
+$GENDEF   MACRO      VALUE
+          DW         $L&VALUE
+          ENDM
+CASE.     MACRO      PARM
+          $INCLAB                 
+          $GENLD     %$NUMLAB     
+          $PUSH      %$NUMLAB     
+          $INCLAB                 
+          $PUSH      %$NUMLAB     
+          $POP       $CSELAB      
+          LD         A, PARM      
+          IF  $NEWCSE
+$CSELKP:                          
+                                  
+                                  
+                                  
+                                  
+           ADD        A,A        
+           LD         E, A
+           LD         D, 0        
+           SBC        HL, DE      
+                                  
+           LD         E, (HL)
+           INC        HL
+           LD         D, (HL)     
+                                  
+           EX         DE, HL       
+           JP         (HL)        
+          ELSE
+           JP         CSELKP      
+          ENDIF
+$NEWCSE   DEFL        0
+          ENDM
+STMT.     MACRO      VALUE
+          $GENJP     ,%$CSELAB   
+          $INCLAB                
+          $PUSH      %$NUMLAB    
+          $GENLAB    %$NUMLAB    
+          ENDM
+ENDC.     MACRO      NUMSTMT
+          $GENJP     ,%$CSELAB    
+          REPT       NUMSTMT - 1  
+           $POP      $STKOFF      
+           $GENDEF   %$STKOFF     
+          ENDM
+          $POP       $STKOFF      
+          $POP       $STKNXT      
+          $GENLAB    %$STKNXT     
+          $GENDEF    %$STKOFF     
+          $GENLAB    %$CSELAB     
+          ENDM
+FOR8.     MACRO      VAR, START, END
+          ASSIGN8.   VAR, START      
+          $INCLAB                    
+          $PUSH      %$NUMLAB        
+          $GENLAB    %$NUMLAB        
+          ENDM
+ENDF8.    MACRO
+          IF $SAVREG                 
+           PUSH       BC
+          ENDIF
+          LD          A, VAR
+          INC         A              
+          LD          VAR, A   
+          LD          C, END
+          CP          C              
+          IF $SAVREG
+           POP        BC
+          ENDIF
+          $POP        $STKOFF
+          GENJP       .LE., %$STKOFF    
+          ENDM
+
+ASIGN8.   MACRO      VALW, VALR
+          LD         A, VALR
+          LD         VALW, A      
+          ENDM
+ASIGN16.  MACRO      VALW, VALR
+          IF         $SAVREG
+           PUSH      HL
+          ENDIF
+          LD         HL, VALR
+          LD         VALW, HL     
+          IF         $SAVREG
+           POP       HL
+          ENDIF
+          ENDM
+BLOCKM.   MACRO      DEST, SRC, COUNT
+          IF         $SAVREG
+           PUSH      BC
+           PUSH      DE
+           PUSH      HL
+          ENDIF
+          LD         HL, SRC
+          LD         DE, DEST
+          LD         BC, COUNT
+          LDIR                  
+          IF         $SAVREG
+           POP       HL
+           POP       DE
+           POP       BC
+          ENDIF
+          ENDM
+          
+       C, END
+          CP          C              

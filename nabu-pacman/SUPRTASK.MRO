@@ -1,0 +1,44 @@
+
+
+
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        SUPRTASK.MRO                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      contains the speed macro for speeding up or slowing      *
+;*      down tasks.                                              *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ SPEED	MACRO	TCB,AMOUNT
+	LOCAL OVER
+	LD	HL,TCB+3
+	LD	A,(HL)
+	LD	BC,AMOUNT
+	SUB	C
+OVER:	LD	(HL),A
+	ENDM
+;
+	

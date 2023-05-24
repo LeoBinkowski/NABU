@@ -1,0 +1,39 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        ADDRESS.EQU                              *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      Contains the base addresses for setup.                   *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: C. Chow                                        *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 
+; 
+VPTRNAD		EQU	0000H	
+VNAMEAD		EQU	1800H
+VATRIAD		EQU	1C00H
+VCOLRAD		EQU	2000H
+VSPRIAD		EQU	3800H			
+

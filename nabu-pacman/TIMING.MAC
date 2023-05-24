@@ -1,0 +1,230 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:         TIMING.MAC                              *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      This file does the timing of the ghosts and the pacman.  *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 	.Z80
+	.RADIX	10
+	.XLIST
+	.PRINTX	/TIMING ROUTINES FOR PACMAN....AUGUST 15, 1983/
+	EXTRN	PACTCB,BLITCB,PINTCB,INKTCB,CLYTCB,RACK,PWRTIMR
+	INCLUDE COMMON.MRO
+	INCLUDE	SUPRTASK.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	ARITH.MRO
+	INCLUDE	PACMAN.EQU
+	VLONG	EQU	42
+	LONG	EQU	33
+	MED	EQU	21
+	SHORT	EQU	16
+	NONE	EQU	0
+	SLOW	EQU	5
+	SLOW1	EQU	3
+	MEDIUM	EQU	1
+	GSLOW	EQU	0
+	GMEDIUM	EQU	3
+	
+;
+;	TIMING DATA TABLES
+;	NOTE:	THIS DATA WAS EXTRACTED FROM KEN USTON'S "MASTERING PACMAN"
+;		PAGES 23-24
+;
+LEVTIM:	SLOW,SLOW1,SLOW1,SLOW1,MEDIUM,MEDIUM
+GHOTIM:	GSLOW,GSLOW,GSLOW,GSLOW,GMEDIUM,GMEDIUM
+PILTIM:	VLONG,VLONG,VLONG,LONG,MED,VLONG,MED,SHORT,SHORT,VLONG,MED,SHORT
+	SHORT,MED,SHORT,SHORT,NONE,SHORT,NONE
+	;
+	;VARIABLES
+	;
+LEVADJ:	DS	1
+GHOADJ:	DS	1
+BLLVAR:	DS	1
+PILVAR:	DS	1
+INLVAR:	DS	1
+CLLVAR:	DS	1
+PALVAR:	DS	1
+	;
+	;This file contains routines for each of the characters of pacman
+	;to determine timing that is based on the current level of play.
+	;
+PILDUR::
+	;This routine will decide on the duration of the power pill
+	;
+	;She starts off long, and works its way to none at all, after level
+	;13 the power pill has no effect.
+	;
+	LD	HL,PILTIM	;GET THE ADDRESS OF THE TIMING DATA
+	LD	BC,(RACK)	;GET THE LEVEL NUMBER
+	LD	A,C		
+	CP	18		;ARE WE IN THE FINAL KEYS
+	JP	NC,NO_PWR	;YES..THEN NO POWER PILL EFFECT
+	LD	B,00H
+	ADD	HL,BC
+	LD	A,(HL)		;GET THE ACTUAL	VALUE
+	LD	(PWRTIMR),A	;STORE IT
+	RET
+NO_PWR:	ASIGN8.	(PWRTIMR),00H
+	RET
+	;
+	;
+	;This routine will do the fine tuning of the speed of both the PAC MAN
+	;and the GHOSTS.
+	;
+PACDEL::
+	;
+	LD	A,(LEVADJ)		;GET THE PACMAN LEVEL ADJUSTMENT
+	AND	A			;ZERO?
+	RET	Z			;YES...THEN DON'T ADJUST NOTHIN'
+	;
+	LD	A,(PALVAR)
+	AND	A
+	JR	NZ,DECPVAR
+	SPEED	PACTCB,1
+	ASIGN8.	(PALVAR),(LEVADJ)
+	RET
+	;
+DECPVAR:
+	LD	A,(PALVAR)
+	DEC	A
+	LD	(PALVAR),A
+	RET
+	;
+	;
+SCRVAR::
+	;
+	;This routine will set up all of the adjustment constants for each of
+	;the characters on each level
+	;
+	LD	HL,LEVTIM	;GET THE ADDRESS OF THE TIMING TABLE
+	LD	BC,(RACK)	;GET THE RACK NO.
+	LD	A,C
+	CP	6
+	JP	NC,JL001
+	LD	B,00H
+	ADD	HL,BC
+	LD	A,(HL)		;GET THE TIMING CONSTANT FOR THAT LEVEL
+	LD	(LEVADJ),A
+	LD	HL,GHOTIM
+	LD	BC,(RACK)
+	LD	B,00H
+	ADD	HL,BC
+	LD	A,(HL)
+	LD	(GHOADJ),A
+	RET
+JL001:	ASIGN8.	(GHOADJ),0
+	ASIGN8.	(LEVADJ),0
+	LD	A,2
+	LD	(PACTCB+2),A
+	LD	(PINTCB+2),A
+	LD	(BLITCB+2),A
+	LD	(INKTCB+2),A
+	LD	(CLYTCB+2),A
+	RET
+	;
+	;
+BLIDEL::	
+	;Here is BLINKY's timing algorithm
+	;
+	LD	A,(GHOADJ)		;GET THE GHOST LEVEL ADJUSTMENT
+	AND	A			;ZERO?
+	RET	Z			;YES...THEN DON'T ADJUST NOTHIN'
+	;
+	LD	A,(BLLVAR)
+	AND	A
+	JR	NZ,DECBVAR
+	SPEED	BLITCB,1
+	ASIGN8.	(BLLVAR),(GHOADJ)
+	RET
+	;
+DECBVAR:
+	LD	A,(BLLVAR)
+	DEC	A
+	LD	(BLLVAR),A
+	RET
+	;
+PINDEL::
+	;
+	;Here is Pinky's timing algorithm
+	;
+	LD	A,(GHOADJ)		;GET THE GHOST LEVEL ADJUSTMENT
+	AND	A			;ZERO?
+	RET	Z			;YES...THEN DON'T ADJUST NOTHIN'
+	;
+	LD	A,(PILVAR)
+	AND	A
+	JR	NZ,DECNVAR
+	SPEED	PINTCB,1
+	ASIGN8.	(PILVAR),(GHOADJ)
+	RET
+	;
+DECNVAR:
+	LD	A,(PILVAR)
+	DEC	A
+	LD	(PILVAR),A
+	RET
+	;
+INKDEL::
+	;Inky's timing algorithm
+	;
+	LD	A,(GHOADJ)		;GET THE GHOST LEVEL ADJUSTMENT
+	AND	A			;ZERO?
+	RET	Z			;YES...THEN DON'T ADJUST NOTHIN'
+	;
+	LD	A,(INLVAR)
+	AND	A
+	JR	NZ,DECIVAR
+	SPEED	INKTCB,1
+	ASIGN8.	(INLVAR),(GHOADJ)
+	RET
+	;
+DECIVAR:
+	LD	A,(INLVAR)
+	DEC	A
+	LD	(INLVAR),A
+	RET
+CLYDEL::
+	;Clyde's timing algorithm
+	;
+	LD	A,(GHOADJ)		;GET THE GHOST LEVEL ADJUSTMENT
+	AND	A			;ZERO?
+	RET	Z			;YES...THEN DON'T ADJUST NOTHIN'
+	;
+	LD	A,(CLLVAR)
+	AND	A
+	JR	NZ,DECCVAR
+	SPEED	CLYTCB,1
+	ASIGN8.	(CLLVAR),(GHOADJ)
+	RET
+	;
+DECCVAR:
+	LD	A,(CLLVAR)
+	DEC	A
+	LD	(CLLVAR),A
+	RET
+	END

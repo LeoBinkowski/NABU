@@ -1,0 +1,74 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        MAIN.MAC                                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      THIS FILE IS THE FIRST TO BE EXECUTED, AND CONTROLS      *
+;*      HELP, RESTART                                            *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski, C. Chow                          *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 		 .Z80
+;
+;	THIS MODULE IS THE OUTER SHELL FOR NEW GAMES
+;
+ 		.RADIX 10
+ 		CSEG
+		INCLUDE COMMON.MRO
+		EXTRN	SETUP,ANIMATE,OPEN,ENDSCR	
+		EXTRN	POSTOP,PACSTART
+;PFLAG::		DB	0	;1 = GAME IN PLAY, 0 = STOPPED
+;RFLAG::		DB	0	;1 = WANT TO RESTART GAME, 0 = NORMAL DURING PLAY
+HFLAG::		DB	0	;1 = HELP WANTED 0 = NORMAL DURING PLAY
+
+					
+
+SHELL::
+		CALL	SETUP		;SET UP VIDEO ROUTINES
+		CALL	ANIMATE		;DO OPENING ANIMATION
+		JR	START		;SKIP AROUND SETTING HELP FLAG AND REMOVING TASKS
+HELP::		LD	A,1
+		LD	(HFLAG),A	;SET HELP FLAG
+RESTART::	N.CLKRV	0		;REMOVE ALL TASKS
+START:	;	LD	SP,(6)		;RESET STACK
+		CALL	OPEN		;PUT ON OPENING SCREEN & OPTIONS
+;SAMEOP:	;	CALL	GINIT		;LOAD GAME GRAPHIC TABLES ETC
+;		CALL	INIT		;INTIALIZE GAME VARIABLES
+;		CALL	GTASK		;SET UP ALL TASKS
+;LOOP:		LD	A,(PFLAG)	;CHECK END OF PLAY FLAG
+;		AND	A
+;		JR	Z,REMOVT
+;		LD	A,(RFLAG)	;CHECK RESTART FLAG
+;		AND 	A
+;		JR	NZ,RESTART
+;		LD	A,(HFLAG)	;CHECK HELP FLAG
+;		AND 	A
+;		JR	NZ,HELP
+;		JR	LOOP		;END OF CHECKS
+		JP	PACSTART
+REMOVT::	N.CLKRV	0		;REMOVE TASKS AT END OF PLAY
+		CALL	ENDSCR		;CALL THE END SCREEN
+		JP	POSTOP	;JUMP TO START OF NEW GAME
+
+		END

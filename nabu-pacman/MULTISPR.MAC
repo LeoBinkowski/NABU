@@ -1,0 +1,581 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        MULTISPR.MAC                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      this file contains the routines necessary to move        *
+;*      the ghosts eyes as patterns, it also contains an         *
+;*      absolute value routine, a relational position checker,   *
+;*      and the task that wiggles the ghost's bodies.            *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*    02   19 DEC 83    L. Binkowski	fixed leave dot bug      *
+;*								 *
+;*    02   18 OCT 83	L. Binkowski	Changed video algorithm  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*								 *
+;*****************************************************************
+ 	.Z80
+	CSEG
+	.RADIX	10
+	.XLIST
+	.PRINTX	/GHOST PATTERN MOVEMENT, CHECKING ROUTINES...JANUARY 23, 1984/
+	INCLUDE PACMAN.EQU
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	LINKTAB.EXA
+	INCLUDE ARITH.MRO
+	.LIST
+	EXTRN	XMDFY,YMDFY,TMPX,TMPY,TMP,GHODIR,BLIY,PINY,INKY,CLYY,DEADFL
+BODY::	DS	1
+WIGBOD::DB	00H	;CURRENT TAIL PATTERN AREA
+LFIVSP::DB	FALSE	;LAST FIVE SPRITE Y LOCATION
+PLA1SCR::DS	300H
+PLA0SCR::DS	300H
+CURSCR::DW	PLA1SCR
+;
+PGHOMX::
+	;
+	;THIS ROUTINE WILL MOVE THE GHOST USING PATTERNS AND SPRITES
+	;
+	;
+	PUSH	BC		;PUT THE ADDRESS OF THE GHOST'S DATA TABLE
+	POP	IX		;FOR USE INDIRECTLY
+	LD	A,E
+	LD	(GHODIR),A	;STORE THE DIRECTION AWAY
+	LD	A,L
+	LD	(BODY),A
+	IF8.	(GHODIR),.EQ.,00H
+	  LD	A,(WIGBOD)	;GET THE PROPER BODY PATTERN
+	  ADD	A,0C0H
+	  LD	E,A
+	  PCALL	SPNAME,(BODY)
+	  ADD8. (IX),02H
+	ELSE.
+	  LD	A,(WIGBOD)
+	  ADD	A,0C8H
+	  LD	E,A
+	  PCALL	SPNAME,(BODY)
+	  SUB8. (IX),02H
+	ENDIF.
+	LD	A,(IX)		;GET THE X COORDINATE
+	ADD	A,04H		;MODIFY IT TO SUIT THE PATTERN DROPPING
+	LD	(XMDFY),A	;STORE IT AWAY
+	LD	A,(IX+1)	;GET THE Y COORDINATE
+	ADD	A,08H		;MODIFY IT FOR PATTERN DROPPING
+	LD	(YMDFY),A	;HOLD ONTO IT
+	SRL	A		
+	SRL	A		;DIVIDE IT BY 8
+	SRL	A		
+	LD	(TMPY),A
+	LD	A,(XMDFY)	;GET THE X VECTOR
+	SRL	A
+	SRL	A		;DIVIDE BY 8
+	SRL	A
+	LD	(TMPX),A
+	LD	A,(XMDFY)	;GET THE REMAINDER OF THE X COORDINATE DIVIDED
+	AND	07H		;BY 8
+	ADD	A,0F0H		;GET THE PROPER PATTERN AREA
+	LD	C,A
+	LD	A,(GHODIR)	;IF LEFT THEN ADD 8 TO THE PATTERN AREA
+	AND	A
+	JR	Z,NXT1A
+	LD	A,8
+NXT1A:	ADD	A,C
+	LD	(TMP),A
+	LD	BC,(BODY)
+	LD	E,(IX+1)	;GET THE X VECTOR
+	LD	L,(IX)		;GET THE Y VECTOR
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	CALL	SPMOVE		;DROP THE BODY ON THE SCREEN
+	POP	HL
+	POP	DE
+	POP	BC
+	REPT	04H
+	INC	BC
+	ENDM
+	LD	DE,0C0H		;GET RID OF THE EYES SPRITES
+	CALL	SPMOVE
+	LD	A,(IX+2)
+	LD	BC,(TMPX)
+	CP	C
+	JP	NZ,NXT@F
+	LD	A,(IX+3)
+	LD	BC,(TMPY)
+	JP	Z,NXT@8
+NXT@F:	CALL	RSTALL
+NXT@8:	IF8.	(IX+4),.EQ.,0FFH	;IF THERE IS NO LAST PATTERN
+	IF8.	(GHODIR),.EQ.,00H	;GET THE PATTERNS IMMEDIATELY BELOW
+	  LD	BC,(TMPX)		;THE GHOST
+	  LD	(IX+2),C
+	  LD	DE,(TMPY)
+	  LD	(IX+3),E
+	  CALL	NPACGET
+	  CP	09H
+	  JR	Z,N@NOTH
+	  CP	0B9H
+	  JR	C,N1CHNG
+N@NOTH:	  LD	A,0AH
+N1CHNG:	  LD	(IX+4),A
+	  LD	BC,(TMPX)
+	  INC	C
+	  LD	(IX+5),C
+	  LD	DE,(TMPY)
+	  LD	(IX+6),E
+	  CALL	NPACGET
+	  CP	09H
+	  JR	Z,M@NOTH
+	  CP	0B9H
+	  JR	C,N2CHNG
+M@NOTH:	  LD	A,0AH
+N2CHNG:	  LD	(IX+7),A
+;	  LD	A,(TMP)
+;	  CP	0F0H			;IF IT'S THAT QUIRKY VALUE SKIP A
+;	  JP	Z,BARF			;WHOLE BUNCH
+	ELSE.
+	  LD	BC,(TMPX)
+	  LD	(IX+5),C
+	  LD	DE,(TMPY)
+	  LD	(IX+6),E
+	  CALL	NPACGET
+	  LD	(IX+7),A
+	  LD	BC,(TMPX)
+	  INC	C
+	  LD	(IX+2),C
+	  LD	DE,(TMPY)
+	  LD	(IX+3),E
+	  CALL	NPACGET
+	  LD	(IX+4),A
+	  LD	A,(TMP)
+	ENDIF.
+;
+NXT@4:	ENDIF.
+;	  IF8.	(GHODIR),.EQ.,00H	;IF RIGHT
+;	    LD	A,(TMP)
+;	    CP	0F0H			;ONLY IF MOVING PATTERNS OVER
+;	    JP	NZ,BARF
+;	    LD	C,(IX+2)
+;	    LD	E,(IX+3)
+;	    LD  L,(IX+4)
+;	    CALL PUTPAT			;PUT LAST PATTERN DOWN
+;	    ASIGN8. (IX+2),(IX+5)
+;	    ASIGN8. (IX+3),(IX+6)	;MOVE THE 2ND LAST PATTERN BLOCK INTO
+;	    ASIGN8. (IX+4),(IX+7)	;THE LAST PATTERN BLOCK
+;	    LD	BC,(TMPX)
+;	    INC C
+;	    LD	(IX+5),C
+;	    LD	E,(IX+6)
+;	    CALL NPACGET			;GET A NEW 2ND LAST PATTERN
+;	    CP	0F0H			;IF FUNNY THEN GET ANOTHER BACK
+;	    JP	C,NXT@7
+;	    LD	C,(IX+5)
+;	    INC C
+;	    LD (IX+5),C
+;	    LD  E,(IX+6)
+;	    CALL NPACGET
+;N;XT@7:	    LD	(IX+7),A
+;	  ELSE.				;IF DIRECTION IS LEFT
+;	    LD	A,(TMP)
+;	    CP	0F8H			;ONLY IF MOVING PATTERNS OVER
+;	    JP	NZ,BARF
+;	    LD	C,(IX+2)
+;	    LD  E,(IX+3)
+;	    LD  L,(IX+4)
+;	    CALL PUTPAT			;DROP LAST PATTERN DOWN
+;N;XT@1:	    ASIGN8. (IX+2),(IX+5)
+;	    ASIGN8. (IX+3),(IX+6)
+;	    ASIGN8. (IX+4),(IX+7)	;MAKE 2ND LAST PATTERN THE LAST PAT
+;	    LD 	BC,(TMPX)
+;	    DEC	C
+;	    LD	(IX+5),C
+;	    LD	E,(IX+6)
+	    CALL NPACGET			;GET THE NEW 2ND LAST PATTERN
+;	    LD	(IX+7),A
+;	  ENDIF.
+BARF:	LD	HL,(TMP)		;ACTUALLY DROP THE NEW EYES
+	LD	BC,(TMPX)
+	LD	DE,(TMPY)
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	CALL	PUTPAT
+	LD	A,(TMP)
+	CP	0F0H			;IF IT'S EYES THAT FIT INTO ONE PATTERN
+	JP	Z,RETSTK		;THEN DON'T DROP A SECOND PATTERN
+	CP	0F8H
+	JP	Z,RETSTK
+	POP	BC			;OTHERWISE DROP THE SECOND PATTERN
+	INC	BC
+	POP	DE
+	POP	HL
+	INC	HL
+	CALL	PUTPAT
+	RET
+RETSTK:	POP	BC
+	POP	BC
+	POP	BC
+	RET
+PGHOMY::
+	;
+	;THIS ROUTINE WILL MOVE THE GHOST USING PATTERNS AND SPRITES
+	;
+	;
+	PUSH	BC		;PUT THE ADDRESS OF THE GHOST'S DATA TABLE
+	POP	IX		;FOR USE INDIRECTLY
+	LD	A,E
+	LD	(GHODIR),A	;STORE THE DIRECTION AWAY
+	LD	A,L
+	LD	(BODY),A
+	IF8.	(GHODIR),.EQ.,10H
+	  LD	A,(WIGBOD)	;GET THE PROPER BODY PATTERN
+	  ADD	A,0C4H
+	  LD	E,A
+	  PCALL	SPNAME,(BODY)
+	  ADD8. (IX+1),02H
+	ELSE.
+	  LD	A,(WIGBOD)
+	  ADD	A,0CCH
+	  LD	E,A
+	  PCALL	SPNAME,(BODY)
+	  SUB8. (IX+1),02H
+	ENDIF.
+	LD	A,(IX)		;GET THE X COORDINATE
+	ADD	A,04H		;MODIFY IT TO SUIT THE PATTERN DROPPING
+	LD	(XMDFY),A	;STORE IT AWAY
+	LD	A,(IX+1)	;GET THE Y COORDINATE
+	ADD	A,04H		;MODIFY IT FOR PATTERN DROPPING
+	LD	(YMDFY),A	;HOLD ONTO IT
+	SRL	A		
+	SRL	A		;DIVIDE IT BY 8
+	SRL	A		
+	LD	(TMPY),A
+	LD	A,(XMDFY)	;GET THE X VECTOR
+	SRL	A
+	SRL	A		;DIVIDE BY 8
+	SRL	A
+	LD	(TMPX),A
+	LD	A,(YMDFY)	;GET THE REMAINDER OF THE Y COORDINATE DIVIDED
+	AND	07H		;BY 8
+	ADD	A,0D0H		;GET THE PROPER PATTERN AREA
+	LD	C,A
+	LD	A,(GHODIR)	;IF UP THEN ADD 8 TO THE PATTERN AREA
+	CP	030H
+	JR	Z,NXT1C
+	LD	A,8
+	JP	NXT1B
+NXT1C:	XOR	A
+NXT1B:	ADD	A,C
+	LD	(TMP),A
+	LD	BC,(BODY)
+	LD	E,(IX+1)	;GET THE X VECTOR
+	LD	L,(IX)		;GET THE Y VECTOR
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	CALL	SPMOVE		;DROP THE BODY ON THE SCREEN
+	POP	HL
+	POP	DE
+	POP	BC
+	REPT	04H
+	INC	BC
+	ENDM
+	LD	DE,0C0H		;GET RID OF THE EYES SPRITES
+	CALL	SPMOVE
+	LD	A,(IX+2)
+	LD	BC,(TMPX)
+	CP	C
+	JP	NZ,NXT@G
+	LD	A,(IX+3)
+	LD	BC,(TMPY)
+	CP	C
+	JP	Z,NXT@A
+NXT@G:	CALL	RSTALL
+NXT@A:	IF8.	(IX+4),.EQ.,0FFH	;IF THERE IS NO LAST PATTERN
+	IF8.	(GHODIR),.EQ.,10H	;GET THE PATTERNS IMMEDIATELY BELOW
+	  LD	BC,(TMPX)		;THE GHOST
+	  LD	(IX+2),C
+	  LD	DE,(TMPY)
+	  LD	(IX+3),E
+	  CALL	NPACGET
+	  LD	(IX+4),A
+	  LD	BC,(TMPX)
+	  LD	(IX+5),C
+	  LD	DE,(TMPY)
+	  INC	E
+	  LD	(IX+6),E
+	  CALL	NPACGET
+	  LD	(IX+7),A
+;	  LD	A,(TMP)
+;	  CP	0DEH			;IF IT'S THAT QUIRKY VALUE SKIP A
+;	  JP	Z,FRAB			;WHOLE BUNCH
+	ELSE.
+	  LD	BC,(TMPX)
+	  LD	(IX+5),C
+	  LD	DE,(TMPY)
+	  LD	(IX+6),E
+	  CALL	NPACGET
+	  LD	(IX+7),A
+	  LD	BC,(TMPX)
+	  LD	(IX+2),C
+	  LD	DE,(TMPY)
+	  INC	E
+	  LD	(IX+3),E
+	  CALL	NPACGET
+	  LD	(IX+4),A
+	  LD	A,(TMP)
+	ENDIF.
+;
+NXT@B:	ENDIF.
+;	  IF8.	(GHODIR),.EQ.,10H	;IF RIGHT
+;	    LD	A,(TMP)
+;	    CP	0D8H			;ONLY IF MOVING PATTERNS OVER
+;	    JP	NZ,FRAB
+;	    LD	C,(IX+2)
+;	    LD	E,(IX+3)
+;	    LD  L,(IX+4)
+;	    CALL PUTPAT			;PUT LAST PATTERN DOWN
+;	    ASIGN8. (IX+2),(IX+5)
+;	    ASIGN8. (IX+3),(IX+6)	;MOVE THE 2ND LAST PATTERN BLOCK INTO
+;	    ASIGN8. (IX+4),(IX+7)	;THE LAST PATTERN BLOCK
+;	    LD	DE,(TMPY)
+;	    INC	E
+;	    LD	C,(IX+5)
+;	    LD	(IX+6),E
+;	    CALL NPACGET			;GET A NEW 2ND LAST PATTERN
+;	    LD	(IX+7),A
+;	    CP	0D8H			;IF FUNNY THEN GET ANOTHER BACK
+;	    JP	C,NXT@D
+;	    LD	E,(IX+6)
+;	    INC E
+;	    LD (IX+6),E
+;	    LD  C,(IX+5)
+;	    CALL NPACGET
+;N;XT@D:	    LD	(IX+7),A
+;	  ELSE.				;IF DIRECTION IS LEFT
+;	    LD	A,(TMP)
+;	    CP	0D0H			;ONLY IF MOVING PATTERNS OVER
+;	    JP	NZ,FRAB
+;	    LD	C,(IX+2)
+;	    LD  E,(IX+3)
+;	    LD  L,(IX+4)
+;	    CALL PUTPAT			;DROP LAST PATTERN DOWN
+;NXT@C:	    ASIGN8. (IX+2),(IX+5)
+;	    ASIGN8. (IX+3),(IX+6)
+;	    ASIGN8. (IX+4),(IX+7)	;MAKE 2ND LAST PATTERN THE LAST PAT
+;	    LD 	DE,(TMPY)
+;	    DEC	E
+;	    LD	C,(IX+5)
+;	    LD	(IX+6),E
+;	    CALL NPACGET			;GET THE NEW 2ND LAST PATTERN
+;	    LD	(IX+7),A
+;	  ENDIF.
+FRAB:	
+	LD	HL,(TMP)		;ACTUALLY DROP THE NEW EYES
+	LD	BC,(TMPX)
+	LD	DE,(TMPY)
+	PUSH	HL
+	PUSH	DE
+	PUSH	BC
+	LD	A,L
+	CP	0D7H
+	JP	Z,FRAB1
+	CALL	PUTPAT
+	LD	A,(TMP)
+	CP	0D0H			;IF IT'S EYES THAT FIT INTO ONE PATTERN
+	JP	Z,RETSTK		;THEN DON'T DROP A SECOND PATTERN
+	CP	0D8H
+	JP	Z,RETSTK
+	CP	0DAH
+	JP	Z,RETSTK
+FRAB1:	POP	BC			;OTHERWISE DROP THE SECOND PATTERN
+	POP	DE
+	INC	DE
+	POP	HL
+	INC	HL
+	CALL	PUTPAT
+	RET
+;
+;
+RSTALL:	PUSH	IX
+	PUSH	IX
+	POP	BC
+	INC	BC
+	INC	BC
+	CALL	RSTPAT
+	POP	IX
+	RET
+CBODY::	
+	;THIS ISR WILL CHANGE THE GHOST'S BODY POSITIONS TO MAKE A WIGGLING
+	;EFFECT TO THE VIEWER
+	;
+;	LD	HL,(0006)
+;	LD	A,0A0H
+;	CP	H
+;DISABL::JP	C,ARGH
+;	CPMCALL	9,BADMSG
+;	DI
+;	HALT
+ARGH:	LD	A,(WIGBOD)	;GET THE OLD PATTERN AREA
+	AND	A		;IS THERE NO OFFSET?
+	JR	Z,COFFST	;YES..THEN MAKE AN OFF SET OF 010H
+	XOR	A
+	LD	(WIGBOD),A	;MAKE NO OFFSET
+	RET
+COFFST:	LD	A,010H		;MAKE AN OFFSET
+	LD	(WIGBOD),A
+	RET
+	;
+FINDP::	
+	;THIS ROUTINE WILL FIND A PATTERN POSITION GIVEN THE SPRITE POSITION
+	;AND THE OFFSET
+	;
+	LD	A,C	;GET THE SPRITE COORDINATE
+	ADD	A,E	;ADD IT TO THE OFFSET
+	SRL	A	
+	SRL	A	;DIVIDE IT BY 8
+	SRL	A
+	RET
+	;
+RSTPAT::
+	;THIS ROUTINE WILL RESTORE PATTERNS THAT WERE OVERWRITTEN BY THE
+	;SPRITE MOVER
+	;
+	PUSH	BC
+	POP	IX
+	LD	C,(IX)
+	LD	E,(IX+1)
+	LD	L,(IX+2)
+	LD	A,L
+	CP	0FFH
+	RET	Z
+;	LD	A,(LPACX)
+;	CP	C
+;	JR	NZ,GODROP
+;	LD	A,(LPACY)
+;	CP	E
+;	JR	NZ,GODROP
+;	LD	A,(LPACPT)
+;	CP	L
+;	JR	NZ,GODROP
+;	LD	HL,(LPACPT)
+GODROP:	CALL	PUTPAT
+	LD	C,(IX+3)
+	LD	E,(IX+4)
+	LD	L,(IX+5)
+;	LD	A,(LPACX)
+;	CP	C
+;	JR	NZ,GODRP2
+;	LD	A,(LPACY)
+;	CP	E
+;	JR	NZ,GODRP2
+;	LD	A,(LPACPT)
+;	CP	L
+;	JR	NZ,GODRP2
+;	LD	HL,(LPACPT)
+GODRP2:	CALL	PUTPAT
+	LD	A,0FFH
+	LD	(IX+2),A
+	RET
+;
+ABS::	;THIS ROUTINE WILL RETURN THE ABSOLUTE VALUE OF A SUBTRACTION OF
+	;TWO 8 BIT NUMBERS
+	;
+	LD	A,C
+	SUB	E
+	BIT	7,A
+	JP	NZ,SWITCH
+	RET
+SWITCH: NEG
+	RET
+RELATE::
+	;THIS ROUTINE WILL DECIDE WHETHER A GHOST SHOULD USE PATTERNS
+	; OR SPRITES FOR MOVEMENT
+	;
+;	LD	L,13H
+;	JR	CKREL
+	LD	A,0FFH
+	AND	A
+	RET
+CKQUAD::
+	LD	L,10H
+CKREL::	PUSH	BC
+	PUSH	DE
+	POP	IY
+	POP	IX
+	LD	C,(IX)
+	LD	E,(IY)
+	CALL	ABS
+	CP	L
+	JR	NC,CHK_AN
+	LD	C,(IX+1)
+	LD	E,(IY+1)
+	CALL	ABS
+	CP	L
+	JR	C,STZERO
+CHK_AN:	LD	C,(IX)
+	LD	E,(IY)
+	CALL	ABS
+	CP	L
+	JR	NC,CLZERO
+	LD	C,(IX+1)
+	LD	E,(IY+1)
+	CALL	ABS
+	CP	L
+	JR	NC,CLZERO
+STZERO:	XOR	A
+	RET
+CLZERO:	LD	A,0FFH
+	AND	A
+	RET
+NPACGET::
+	LD	HL,(CURSCR)
+	LD	D,0
+	LD	B,0
+	REPT	05H		;MULTIPLY DE BY 32
+	  SLA	E
+	  RL	D
+	ENDM
+	ADD	HL,DE
+	ADD	HL,BC
+	LD	A,(HL)
+	RET
+NPACPUT::
+	LD	A,L
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	LD	HL,(CURSCR)
+	LD	D,0
+	LD	B,0
+	REPT	05H
+	 SLA	E
+	 RL	D
+	ENDM
+	ADD	HL,DE
+	ADD	HL,BC
+	LD	(HL),A
+	POP	HL
+	POP	DE
+	POP	BC
+	CALL	PUTPAT
+	RET
+	END

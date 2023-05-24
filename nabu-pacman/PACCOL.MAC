@@ -1,0 +1,71 @@
+
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:          PACCOL.MAC                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      THIS FILE CONTAINS THE COLOR TABLE FOR THE PACMAN GAME.  *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 
+PACCOL::
+;
+	.RADIX	10
+        DB 040H
+        DB 0A0H
+        DB 040H
+        DB 060H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 090H
+        DB 0A0H
+        DB 030H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+        DB 0F0H
+SUPER1::DB 2,13,27,'PROGRAMMED BY LEO BINKOWSKI'
+SUPER2::DB 2,14,23,'SOUND BY LAURA SCHENING'
+	END

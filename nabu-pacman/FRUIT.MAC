@@ -1,0 +1,145 @@
+
+
+
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:           FRUIT.MAC                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      this file controls the appearance of the fruit.          *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*    03   12 FEB 83    L. Binkowski	Fixed bad score in keys  *
+;*								 *
+;*    02   17 OCT 83	L. Binkowski	Video change		 *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 	.Z80
+	.RADIX	10
+	.PRINTX/PACMAN FRUIT GENERATION ROUTINES....OCTOBER 17, 1983/
+	INCLUDE	COMMON.MRO
+	INCLUDE ARITH.MRO
+	INCLUDE LINKTAB.EXA
+	INCLUDE CLKAT.MRO
+	EXTRN	RACK,HTOD,DISCOR,NPACPUT,NPACGET
+FRUDAT::DB	0A0H,0A1H,0A8H,0A8H,0A2H,0A2H,0B0H,0B0H,0B1H,0B1H,0A9H,0A9H,0B8H
+PNTDAT:	DW	10H,30H,50H,50H,70H,70H,100H,100H,200H,200H,300H,300H,500H
+PNTPAT:	DB	0B9H,0BBH,0BDH,0BDH,0BFH,0BFH,0C1H,0C1H,0C3H,0C3H,0C5H,0C5H,0C7H
+FRUTIMR:: DB	00H
+;
+SHOFRU::
+	;THIS TASK WILL MAKE TWO PIECES OF FRUIT APPEAR EVERY RACK DEPENDING
+	;ON THE RACK NUMBER
+	CALL	DISCOR
+	ADD8.	(FRUTIMR),1		;INCREMENT THE FRUIT TIMER
+	LD	A,(FRUTIMR)		;GET IT
+;	CP	04H
+;	JR	Z,BLKPNT
+;	CP	9
+;	JR	Z,BLKPNT	
+	CP	06H			;HAS IT REACHED THE FIRST MILESTONE
+	JR	NZ,TRYNXT		;NO...TRY THE OTHER ONE
+	LD	BC,(RACK)		;GET THE RACK NUMBER
+	LD	A,C
+	CP	12
+	JP	NC,KEYONLY
+	LD	B,00H
+	LD	HL,FRUDAT		;GET THE ADDRESS OF THE FRUIT DATA
+	ADD	HL,BC			;ADD EM
+	LD	A,(HL)			;NOW WE HAVE THE PATTERN FOR THE FRUIT
+	LD	C,16
+	LD	E,13
+	LD	L,A
+	CALL	NPACPUT			;PUT IT ON THE SCREEN
+	RET
+TRYNXT:	
+	CP	0FH			;DO MUCH THE SAME EXCEPT FOR THE
+	JP	NZ,CKREST		;SECOND FRUIT
+	LD	BC,(RACK)
+	LD	A,C
+	CP	12
+	JP	NC,KEYONLY
+	LD	B,00H
+	LD	HL,FRUDAT
+	ADD	HL,BC
+	LD	A,(HL)
+	LD	C,15
+	LD	E,13
+	LD	L,A
+	CALL	NPACPUT
+	RET
+CKREST:	CP	07H
+	RET	Z
+	CP	10H
+	RET	Z
+BLKPNT:	PCALL	NPACPUT,15,13,' '	;BLANK OUT THE POINT PATTERNS
+	PCALL	NPACPUT,16,13,' '
+	RET
+KEYONLY:
+	PCALL	NPACPUT,16,13,0B8H
+	RET
+KEYHI:
+	PCALL	NPACPUT,15,13,0C7H
+	PCALL	NPACPUT,16,13,0C8H
+	PCALL	HTOD,500H
+	CALL	DISCOR
+	RET
+;
+EATFRU::
+	;THIS ROUTINE WILL DO WHAT IS NECESSARY AFTER EATING A FRUIT
+	;
+	LD	BC,(RACK)	;GET THE RACK NUMBER
+	LD	B,00H
+	LD	A,C
+	CP	12
+	JP	NC,KEYHI
+	LD	HL,PNTPAT	;GET THE POINT PATTERN ADDRESS
+	ADD	HL,BC		;ADD EM
+	LD	A,(HL)		;GET THE PATTERN NUMBERS TO DROP
+	LD	L,A
+	LD	C,15
+	LD	E,13
+	PUSH	BC
+	PUSH	DE
+	PUSH	HL
+	CALL	NPACPUT		;DROP THE FIRST ONE
+	POP	HL
+	INC	L
+	POP	DE
+	POP	BC
+	INC	C
+	CALL	NPACPUT		;DROP THE ONE NEXT TO IT
+	LD	BC,(RACK)	;NOW FIND OUT HOW MUCH TO ADD TO THE SCORE
+	SLA	C
+	LD	B,00H
+	LD	HL,PNTDAT	;GET THE POINT DATA ADDRESS
+	ADD	HL,BC		;ADD EM
+	LD	C,(HL)
+	INC	HL
+	LD	B,(HL)
+	CALL	HTOD		;ADD THE LOWER ORDER STUFF
+	CALL	DISCOR
+	RET
+	END
+

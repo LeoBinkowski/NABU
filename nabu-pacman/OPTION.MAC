@@ -1,0 +1,224 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        OPTION.MAC                               *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC-MAN		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      this file does the option screen                         *
+;*      REGISTER CLOBBER: BC,DE,HL                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski, T. Nguyen                        *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;
+;To use option:
+;
+;     PCALL OPTION,StartMessage,EndMessage,NumberOfChoices_And_StartOfHiLiteBar
+;
+;     Note : StartOfHiLiteBar is the Y coordinate
+;   
+;      To put up an opttion screen with three options:
+;
+;	A1:	DEFMSG	11,1,'START SCREEN '
+;	A2:	DEFMSG	11,3,'OPTION SCREEN'
+;	A3:	DEFMSG	11,5,'END SCREEN'
+;       StartMessage:
+;                  A1,A2,A3,A4
+;       EndMessage
+;
+;       PCALL	OPTION,StartMessage,EndMessage,0301H
+;
+;	Register A contains the choice that the user picks
+;
+ 	.Z80
+	.RADIX	10
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	ADDRESS.EQU
+	INCLUDE LINKTAB.EXA
+	EXTRN	REVERSE,NUMPLA,CLR,RESTART,HELP,ENGLISH
+	EXTRN	PUTLOGO,CLR
+	;
+	;                
+OPTIN1:		DS	2
+OPTIN2:		DS	2
+YCOR:		DS	1
+NOCHOI:		DS	1
+CHOICE:		DS	1
+STACHO:		DS	1
+ENDCHO:		DS	1
+BARLEN::	DB	26
+XCRD:		DB	2
+NOLOGO::	DB	1
+;
+;
+OPTION::
+	LD	(OPTIN1),BC			;SAVE START POINTER OF TEXT
+	LD	(OPTIN2),DE			;SAVE END POINTER OF TEXT
+        LD	(YCOR),HL			;SAVE START POSITION YCOR
+						;AND NUMBER OF CHOICES
+;	
+	ASIGN8. (CHOICE),1			;DEFAULT TO CHOICE 1
+	ASIGN8.	(STACHO),(YCOR)			;SAVE THE START YCOR
+	LD	A,(NOCHOI)			;ENDCHO := YCOR + 2(NOCHOI-1)
+	DEC	A				;
+	LD	B,A				;
+	LD	A,(YCOR)			;
+	ADD	A,B				;
+	ADD	A,B				;
+;	
+	LD	(ENDCHO),A			;
+;
+	SETCOLR	DBLUE,DBLUE
+	PCALL	RPATRN,ENGLISH
+	LD	HL,400H
+	EX	DE,HL
+	PCALL	LPATRN,ENGLISH	;OFFSET ENGLISH TO 80H PATS (FOR REVERSE)
+	PCALL	VRAML8,20H,CLR,VCOLRAD
+	PCALL	VFILL,300H,20H,VNAMEAD
+;
+	LD	A,(NOLOGO)		;IF NOLOGO = 0 THEN
+	AND	A			;
+	JP	NZ,PUTSCR		;
+	PCALL 	PUTLOGO,02H,0H,2	;  PUT ON LOGO
+;
+PUTSCR:
+	REPEAT.
+		LD	IX,(OPTIN1)		;GET POINTER OF TEXT
+		LD	C,(IX)			;LD BC START ADDRESS OF TEXT
+		LD	B,(IX+1)
+		CALL	PUTMSG			;PUT UP A LINE OF TEXT
+		INC	IX			;INCREASE POINTER TO START
+		INC	IX			;ADDRESS OF TEXT
+		LD	(OPTIN1),IX
+	UNTIL16. (OPTIN1),.EQ.,(OPTIN2)		;CONTINUE TILL POINTER OF TEXT
+ 						;EQUAL END POINTER OF TEXT
+;
+	XOR	A
+	PCALL	REVERSE,(XCRD),(YCOR),(BARLEN)	;PUT HI-LITE BAR ON THE FIRST
+						;CHOICE
+	PCALL   VBLKOF
+;
+OPT1:	N.DEVRDY KEYBOARD,KEYSTROKE		;ANYTHING IN KEYBOARD BUFFER?
+	AND	A
+	JR	Z,DOJOY				;IF NOT CHECK JOYSTICK BUFFER
+	N.DEVIO	KEYBOARD,KEYSTROKE		;READ INPUT
+						;CASE INPUT OF 
+	CP	0ABH				;RESTART1: RESTART GAME
+	JP	Z,RESTART			;
+	CP	0BDH				;RESTART1: RESTART GAME
+	JP	Z,RESTART
+	CP	0EAH				;HELP:     GET INSTRUCTION
+	JP	Z,HELP
+;	CP	'1'				;'1':  
+;	JP	Z,ONEPLA			;         MOVE HI-LITE BAR UP
+;	CP	'2'				;'2':
+;	JP	Z,TWOPLA			;         MOVE HI-LITE BAR DOWN
+	CP	0E2H				;UP ARROW:
+	JP	Z,ONEPLA			;         MOVE HI-LITE BAR UP
+	CP	0E3H				;DOWN ARROW:
+	JP	Z,TWOPLA			;         MOVE HI-LITE BAR DOWN
+	CP	0F2H				;RELEASED UP ARROW:
+	JP	Z,OPT1				;         CHECK KEYBOARD BUFFER
+	CP	0F3H				;RELEASED DOWN ARROW:
+	JP	Z,OPT1				;         CHECK KEYBOARD BUFFER
+	CP	0DH				;GO:
+	JP	Z,EXECPL			;         START GAME
+	CALL	RUDENOISE			;NONE OF THE ABOVE:
+						;         MAKE RUDE NOISE
+						;ENDCASE
+;
+DOJOY:	N.DEVRDY KEYBOARD,JSTCK1		;ANYTHING IN JOYSTIK BUFFER?
+	AND	A
+	JP	Z,OPT1				;IF NOT CHECK KEYBOARD BUFFER
+	N.DEVIO	KEYBOARD,JSTCK1			;ELSE READ JOYSTIK
+						;CASE JOYSTIK OF
+	BIT	3,A				;  WAS PUSHED UP:
+	JP	NZ,ONEPLA			;     MOVE HI-LITE BAR UP
+	BIT	1,A				;  WAS PUSHED DOWN:
+	JP	NZ,TWOPLA			;     MOVE HI-LITE BAR DOWN
+	BIT	4,A				;  WAS PUSHBUTTON:
+	JP	NZ,EXECPL			;     START GAME
+	JP	OPT1				;  NONE OF THE ABOVE: 
+						;     CHECK KEYBOARD BUFFER
+						;ENDCASE
+ONEPLA:	LD	A,(CHOICE)			;
+	CP	1				;IF CHOICE = 1 THEN 
+	JP	Z,WRAPD 			;  IGNORE WRAP DOWN
+						;ELSE
+	DEC	A
+	LD	(CHOICE),A			;  CHOICE  := CHOICE - 1
+;
+	PCALL	REVERSE,(XCRD),(YCOR),(BARLEN)	;   UNREVERSE HI-LITE BAR
+	LD	A,(YCOR)
+	DEC	A				;
+	DEC	A
+	LD	(YCOR),A			;SET YCOR 
+;	
+	XOR	A
+	PCALL	REVERSE,(XCRD),(YCOR),(BARLEN)  ;  REVERSE NEXT OPTION
+	JP	OPT1				;  CHECK KEYBOARD
+;
+WRAPD:	LD	A,(NOCHOI)
+	LD	(CHOICE),A
+	ASIGN8.	(YCOR),(ENDCHO)
+	PCALL	REVERSE,(XCRD),(STACHO),(BARLEN)
+	XOR	A
+	PCALL	REVERSE,(XCRD),(ENDCHO),(BARLEN)
+	JP	OPT1
+;
+TWOPLA: LD	A,(CHOICE)			;IF CHOICE = NOCHOIC THEN
+	LD	HL,NOCHOI			;
+	CP	(HL)				;
+	JP	Z,WRAPUP			;  WRAP UP
+						;ELSE
+	INC	A
+	LD	(CHOICE),A			;  CHOICE := CHOICE + 1
+;
+	PCALL	REVERSE,(XCRD),(YCOR),(BARLEN)	;  UNREVERSE HI-LITE BAR
+	LD	A,(YCOR)
+	INC	A
+	INC	A
+	LD	(YCOR),A
+	XOR	A
+	PCALL	REVERSE,(XCRD),(YCOR),(BARLEN)	;  PUT HI-LITE BAR ONE BELOW
+						;ENDIF
+	JP	OPT1				;  CHECK KEYBOARD
+;
+WRAPUP:	
+	ASIGN8.	(YCOR),(STACHO)	
+	ASIGN8.	(CHOICE),1
+	PCALL	REVERSE,(XCRD),(ENDCHO),(BARLEN)
+	XOR	A
+	PCALL	REVERSE,(XCRD),(STACHO),(BARLEN)
+	JP	OPT1
+;
+EXECPL: LD	A,(CHOICE)              	;RETURN WITH REGISTER A 
+	RET					;CONTAINING THE CHOICE
+	;
+RUDENOISE::
+	;THIS ROUTINE WILL GENERATE A DISGUSTING NOISE FOR THE DURATION OF
+	;ABOUT 1 SECOND.
+	;
+	PCALL	AUDIOWR,0,58H
+	PCALL	AUDIOWR,1,2H
+	PCALL	AUDIOWR,7,3EH
+	PCALL	AUDIOWR,8,10H
+	PCALL	AUDIOWR,0DH,0EH
+	PCALL	AUDIOWR,0BH,4BH
+	PCALL	AUDIOWR,0CH,00H
+	LD	BC,1
+	LD	HL,0FFFFH
+NLOOP:	SBC	HL,BC
+	JR	NC,NLOOP
+	PCALL	AUDIOWR,7,3FH
+	PCALL	AUDIOWR,8,00H
+	RET
+	END

@@ -1,0 +1,250 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:          ANIMUS.MAC                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      this file contains the "READY" music for PAC MAN         *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Schening                                    *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 	.Z80
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE CLKAT.MRO
+	INCLUDE STRUCT.MRO
+	INCLUDE LINKTAB.EXA
+	.LIST
+;
+ANIMTCB:: DB 0,0,0,0,0,0
+TBEG:	DB	1
+BBEG:	DB	1
+TR:	DB	0
+TD:	DB	0
+TDEL:	DB	0
+TRA:	DW	0000
+TDA:	DW	0000
+TDELA:	DW	0000
+TD1:	DB	0
+BR:	DB	0
+BD:	DB	0
+BDEL:	DB	0
+BRA:	DW	0000
+BDA:	DW	0000
+BDELA:	DW	0000
+BD1:	DB	0
+;
+STOPAM::DB	0
+;
+TRBREG:: DB 0,  07H,  08H,  00H,  08H,  08H,  00H,  08H,  08H,  00H,  08H,  08H
+	 DB     00H,  00H,  08H,  08H,  00H,  08H,  08H,  00H,  08H,  08H,  00H
+	 DB     08H,  08H,  00H,  08H,  08H,  00H,  00H,  08H,  08H,  00H,  08H
+         DB     08H,  00H,  08H,  08H,  00H,  08H,  08H,  00H,  08H,  08H,  00H
+         DB     00H,  08H,  08H,  00H,  08H,  08H,  00H,  08H,  08H,  00H,  08H
+         DB     08H,  00H,  08H,  08H,  00H,  08H,  08H,  00H,  08H,  08H,  00H
+         DB     08H,  08H,  00H,  08H, 00FFH
+;
+TRBDAT:: DB 0,03CH,0FH,0AAH,01H,0ACH,0H,0FH,0AAH,02H,03BH,00H,0FH,0AAH,02H,0A7H
+	 DB   00H,0FH,0AAH,01H,0ACH,0AAH,02H,03BH,00H,0FH,0AAH,02H,0A7H,00H
+	 DB   0FH,0AAH,01H,094H,00H,0FH,0AAH,02H,01BH,00H,0FH,0AAH,02H,081H,00H
+	 DB   0FH,0AAH,01H,094H,0AAH,02H,01BH,00H,0FH,0AAH,02H,081H,00H
+	 DB   0FH,0AAH,01H,0ACH,00H,0FH,0AAH,02H,03BH,00H,0FH,0AAH,02H,0A7H,00H
+ 	 DB   0FH,0AAH,01H,0ACH,0AAH,02H,03BH,00H,0FH,0AAH,02H,0A7H,00H
+	 DB   0FH,0AAH,02H,0A7H,00H,0FH,0AAH,02H,081H,00H,0FH,0AAH,02H,081H,00H
+	 DB   0FH,0AAH,02H,05DH,00H,0FH,0AAH,02H,03BH,00H,0FH,0AAH,02H,01BH,00H
+	 DB   0FH,0AAH,01H,0ACH,00H
+;
+TRBDEL:: DB 0,  01H,  01H,  07H,  02H,  01H,  07H,  02H,  01H,  07H,  02H,  01H
+	 DB     07H,  07H,  02H,  01H,  0BH,  07H
+	 DB     01H,  07H,  02H,  01H,  07H,  02H,  01H,  07H,  02H,  01H
+	 DB     07H,  07H,  02H,  01H,  0BH,  07H
+	 DB     01H,  07H,  02H,  01H,  07H,  02H,  01H,  07H,  02H,  01H
+	 DB     07H,  07H,  02H,  01H,  0BH,  07H
+	 DB     01H,  07H,  02H,  01H,  05H,  02H,  01H,  07H,  02H,  01H,  05H
+	 DB     02H,  01H,  07H,  02H,  01H,  05H,  02H,  01H, 0FH,  01H
+;
+BSSREG:: DB 0, 07H,  09H,  02H, 09H,  09H,  09H,  09H,  02H,  09H,  09H,  09H
+	 DB    09H,  02H,  09H,  09H,  09H,  09H,  09H
+;
+BSSDAT:: DB 0,03CH,0AH,0AAH,03H,057H,00H,0AH,00H,0AH,0AAH,03H,027H,00H,0AH,00H
+	 DB   0AH,0AAH,03H,057H,00H,0AH,00H,0AH,00H
+;
+BSSDEL:: DB 0, 01H,  01H, 014H, 02H, 0EH, 012H,  01H, 012H,  02H, 0EH, 012H
+	 DB    01H, 012H,  02H, 0EH, 012H, 0DH, 01H
+;
+ANIMUS::	
+	IF8.	(TBEG),.EQ.,1
+	  LD	HL,TRBREG
+	  LD	(TRA),HL
+	  LD	HL,TRBDAT
+	  LD	(TDA),HL
+	  LD	HL,TRBDEL
+	  LD	(TDELA),HL
+	  ASIGN8. (TBEG),0
+	ENDIF.	
+;
+	IF8.	(TDEL),.NE.,0
+	  JP	CKDEL
+	ENDIF.
+;
+	LD	HL,(TRA)
+	INC	HL
+	LD	(TRA),HL
+	LD	A,(HL)
+	LD	(TR),A
+	CP	0FFH
+	JP	Z,ANOFF
+;
+	LD	HL,(TDA)
+	INC	HL
+	LD	(TDA),HL
+	LD	A,(HL)
+	CP	0AAH
+	JP	NZ,BELOW
+	LD	HL,(TDA)
+	INC	HL
+	LD	(TDA),HL
+	LD	A,(HL)
+	LD	(TD1),A		;COARSE REGISTER
+	LD	HL,(TDA)
+	INC	HL
+	LD	(TDA),HL
+	LD	A,(HL)
+	LD	(TD),A
+
+	JP	CONT
+BELOW:	LD	(TD),A
+;
+CONT:	LD	HL,(TDELA)
+	INC	HL
+	LD	(TDELA),HL
+	LD	A,(HL)
+	LD	(TDEL),A
+;
+;
+	PCALL	AUDIOWR,(TR),(TD)
+	IF8.	(TR),.EQ.,0
+	  PCALL	AUDIOWR,1,(TD1)
+	  ASIGN8. (TD1),0
+	ENDIF.
+;
+CKDEL:	LD	A,(TDEL)
+	DEC	A
+	LD	(TDEL),A
+;
+	CP	0
+	RET	Z
+;
+BASS:	IF8.	(BBEG),.EQ.,1
+	  LD	HL,BSSREG
+	  LD	(BRA),HL
+	  LD	HL,BSSDAT
+	  LD	(BDA),HL
+	  LD	HL,BSSDEL
+	  LD	(BDELA),HL
+	  ASIGN8. (BBEG),0
+	ENDIF.	
+;
+	IF8.	(BDEL),.NE.,0
+	  JP	CKDEL1
+	ENDIF.
+;
+	LD	HL,(BRA)
+	INC	HL
+	LD	(BRA),HL
+	LD	A,(HL)
+	LD	(BR),A
+	CP	0FFH
+	JP	Z,ANOFF
+;
+;
+	LD	HL,(BDA)
+	INC	HL
+	LD	(BDA),HL
+	LD	A,(HL)
+	CP	0AAH
+	JP	NZ,BELOW1
+	LD	HL,(BDA)
+	INC	HL
+	LD	(BDA),HL
+	LD	A,(HL)
+	LD	(BD1),A		;COARSE REG
+	LD	HL,(BDA)
+	INC	HL
+	LD	(BDA),HL
+	LD	A,(HL)
+	LD	(BD),A		;FINE REG
+	JP	CONT1
+BELOW1:	LD	(BD),A
+;
+CONT1:	LD	HL,(BDELA)
+	INC	HL
+	LD	(BDELA),HL
+	LD	A,(HL)
+	LD	(BDEL),A
+;
+	PCALL	AUDIOWR,(BR),(BD)
+	IF8.	(BR),.EQ.,2
+	  PCALL	AUDIOWR,3,(BD1)
+	  ASIGN8.  (BD1),0
+	ENDIF.
+;
+CKDEL1: LD	A,(BDEL)
+	DEC	A
+	LD	(BDEL),A
+;
+	CP	0
+	RET	NZ
+	JP	BASS
+;
+ANOFF::	PCALL	AUDIOWR,0,0
+	PCALL	AUDIOWR,1,0
+	PCALL	AUDIOWR,8,0
+	PCALL	AUDIOWR,2,0
+	PCALL	AUDIOWR,3,0
+	PCALL	AUDIOWR,9,0
+;
+	ASIGN8.	(TBEG),1
+	ASIGN8.	(BBEG),1
+	ASIGN8.	(TR),0
+	ASIGN8.	(TD),0
+	ASIGN8.	(TDEL),0
+	ASIGN8.	(TRA),0
+	ASIGN8.	(TDA),0
+	ASIGN8.	(TDELA),0
+	ASIGN8.	(TD1),0
+	ASIGN8.	(BR),0
+	ASIGN8.	(BD),0
+	ASIGN8.	(BDEL),0
+	ASIGN8.	(BRA),0
+	ASIGN8.	(BDA),0
+	ASIGN8.	(BDELA),0
+	ASIGN8.	(BD1),0
+;
+	ASIGN8.	(STOPAM),1
+;
+	RET
+;
+	END
+

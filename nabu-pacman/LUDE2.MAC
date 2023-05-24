@@ -1,0 +1,236 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:           LUDE2.MAC                             *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  PAC MAN 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*      THIS FILE CONTAINS THE SECOND INTERMISSION               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Schening                                    *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 		.Z80
+		.RADIX 10
+		.XLIST
+		INCLUDE CLKAT.MRO
+		INCLUDE	LINKTAB.EXA
+		INCLUDE COMMON.MRO
+		INCLUDE STRUCT.MRO
+		INCLUDE ARITH.MRO
+		.LIST
+;
+	EXTRN INTSP,PACCOL,PACBOARD,PUTPAT,MUSICTCB,MUSIC,OFF,ENDFLG
+;		
+	LD2TCB::  DB  0,0,0,0,0,0	;TASK CONTROL BLOCKS FOR THE TWO TASKS
+	GH2TCB::  DB  0,0,0,0,0,0
+	PDIR:	DB	020H		;PACMAN DIRECTION  LEFT
+	PX:	DB	0F5H		;PACMAN'S X COORD'S
+	PMTH:	DB	00H		;PACMAN'S MOUTH POSITION
+	BX:	DB	0FBH		;BLINKY'S X COORD
+	BPAT:	DB	050H		;CURRENT BLINKY PATTERN
+	PPAT:	DB	020H		;CURRENT PACMAN PATTERN
+	FFFF:	DB	00H
+	FFF:	DB	00H
+	FF:	DB	00H
+	F:	DB	00H
+	DD:	DB	00H
+	COUNT:	DB	00H
+;
+CONTR2::	
+		PCALL	VBLKON
+;		PCALL	CLKPRM,007H,00H		;DISABLE TASKS
+;		PCALL	VSETG1
+;		PCALL	VNAMEST,3800H
+;		PCALL	VPTRNST,0H
+;		PCALL	VCOLRST,2000H
+		PCALL	VSPRIST,2800H
+;		PCALL	VATRIST,3C00H
+;		PCALL	RPATRN,PACBOARD
+;		PCALL	VFILL,300H,20H,3800H
+		PCALL	LPATRN,INTSP,2800H
+;		PCALL	VRAML8,20H,PACCOL,2000H
+;
+		PCALL	SPMARK,4
+;
+		PCALL	SPNAME,0,020H	;PACMAN SPRITE IS LIGHT YELLOW
+		PCALL	SPNAME,1,50H		;GHOST BODY #1
+		PCALL	SPNAME,2,070H		;LEG
+		PCALL	SPNAME,3,048H		;EYES
+		PCALL	SPCOLR,0,LYELLOW
+		PCALL	SPCOLR,1,DRED		
+		PCALL	SPCOLR,2,WHITE
+		PCALL	SPCOLR,3,WHITE
+		PCALL	SPMOVE,0,10H,0FDH
+		PCALL	SPMOVE,1,10H,0FDH
+		PCALL	SPMOVE,2,10H,0FDH
+		PCALL	SPMOVE,3,10H,0FDH
+;
+		SETCOLR BLACK,BLACK	;SMALL PAC DEFINITION IS LATER
+		PCALL	VSETSPA,1,0	;16X16 SIZE. ZERO MAG. ALL SPRITES
+		SETSK	LUDE2,LD2TCB,3,20	;EVERY 3 INTERUPTS. START IN 2
+		SETSK	GHO,GH2TCB,3,93D
+;
+		SETSK	MUSIC,MUSICTCB,1,1
+;
+		PCALL	CLKPRM,004H,004H		;ENABLE TASKS
+		PCALL	VBLKOFF
+;
+LOOP:		IF8.	(ENDFLG),.EQ.,1
+		JP	STOP
+		ENDIF.
+		JP	LOOP
+;
+STOP:		CALL	OFF
+		ASIGN8.	(PDIR),20H
+		ASIGN8.	(PX),0F5H
+		ASIGN8.	(PMTH),0
+		ASIGN8.	(BX),0FBH
+		ASIGN8.	(BPAT),50H
+		ASIGN8.	(PPAT),20H
+		ASIGN8.	(FFFF),0
+		LD	(FFF),A
+		LD	(FF),A
+		LD	(F),A
+		LD	(DD),A
+		LD	(COUNT),A		
+		N.CLKRV LD2TCB
+		N.CLKRV GH2TCB
+		N.CLKRV MUSICTCB
+		RET
+;
+LUDE2::		
+		LD	A,(PMTH)	;GET MOUTH STATE
+		CP	0CH		;CLOSING?
+		JP	NZ,PACONT	;NO..CONTINUE
+		ASIGN8.	(PMTH),0FCH	;CLOSE MOUTH
+PACONT:		ADD8.	(PMTH),4	;INCREMENT MOUTH PATTERN
+		LD	A,(PMTH)
+		LD	C,A
+		LD	A,(PDIR)	;GET PACMAN DIRECTION
+		ADD	A,C		;ADD EM
+		LD	(PPAT),A	;PUT INTO PATTERN VECTOR
+		PCALL	SPNAME,0,(PPAT)	;ADJUST PATTERN
+		SUB8.	(PX),2
+		PCALL	SPMOVE,0,070H,(PX)
+;
+		IF8.	(PX),.EQ.,0FDH		;END OF LINE?
+		PCALL	SPCOLR,0,0		;COLOR PACMAN CLEAR
+		PCALL	SPMOVE,0,010H,(PX)	;MOVE HIM OFF LINE
+		ENDIF.
+;
+		RET
+;
+GHO::		IF8.	(BX),.EQ.,04FH		;STRETCH 1 SPRITE
+		PCALL	SPNAME,1,060H
+		PCALL	SPNAME,3,07CH		;STRETCHED 1 EYES
+		ADD8.	(COUNT),1
+		IF8.	(COUNT),.GE.,13
+		ADD8.	(BX),2
+		ASIGN8.	(COUNT),0
+		ASIGN8.	(FFF),99
+		ENDIF.
+		RET
+		ENDIF.
+;
+		IF8.	(FFF),.EQ.,99		;STRETCH 2 SPRITE
+		PCALL	SPNAME,1,064H
+		PCALL	SPNAME,3,080H
+		ADD8.	(COUNT),1
+		IF8.	(COUNT),.GE.,13
+		ASIGN8.	(FF),99
+		ASIGN8.	(COUNT),0
+		ASIGN8.	(FFF),0
+		ENDIF.
+		RET
+		ENDIF.
+;
+		IF8.	(FF),.EQ.,99		;STRETCH 3 SPRITE
+		PCALL	SPNAME,1,068H
+		PCALL	SPNAME,3,084H
+		ADD8.	(COUNT),1
+		IF8.	(COUNT),.GE.,13
+		ASIGN8.	(COUNT),0
+		ASIGN8.	(FF),0
+		ASIGN8.	(FFFF),99
+		ENDIF.
+		RET
+		ENDIF.
+;
+		IF8.	(FFFF),.EQ.,99
+		PCALL	SPNAME,1,088H	;STRETCHED CLOAK AS 2 SPRITES
+		PCALL	SPNAME,2,08CH		;TAIL BIT
+		PCALL	SPCOLR,2,DRED
+		PCALL	SPMOVE,1,070H,04CH
+		PCALL	SPMOVE,3,070H,04CH
+		PCALL	SPMOVE,2,070H,05CH
+		ADD8.	(COUNT),1
+		IF8.	(COUNT),.GE.,13
+		ASIGN8.	(COUNT),0
+		ASIGN8.	(FFFF),0
+		ASIGN8.	(F),99
+		ENDIF.
+		RET
+		ENDIF.
+;
+		IF8.	(F),.EQ.,99
+		PCALL	SPNAME,1,06CH		;RIPPED GHOST SPRITE
+		PCALL	SPNAME,2,070H
+		PCALL	SPCOLR,2,WHITE
+		PCALL	SPMOVE,1,070H,048H	;MOVE LEFT 8 PIXELS
+		PCALL	SPMOVE,2,070H,048H	;PUT LEG SPRITE THERE
+		PCALL	SPNAME,3,078H		;UP EYES
+		PCALL	SPMOVE,3,070H,048H	;EYES 8 PIXELS LEFT
+		PCALL	PUTPAT,11,15,019H	;PUT UP RIPPED CLOAK PATTERN
+		ASIGN8.	(F),0
+		ASIGN8.	(DD),99
+		RET
+		ENDIF.
+;
+		IF8.	(DD),.EQ.,99
+		ADD8.	(FF),1
+		 IF8.	(FF),.GE.,18		;KEEP DOWNWARD EYES FOR 5 INT.
+		   ADD8.	(FFF),1
+		   PCALL	SPNAME,3,074H	;CHANGE TO DOWN EYES
+		 	IF8.	(FFF),.GE.,13	;WAIT 5 INTERRUPTS
+			 ASIGN8.	(ENDFLG),1	;SET END OF LUDE FLAG
+			 RET
+			ENDIF.
+		 ENDIF.
+		RET
+		ENDIF.
+;		
+		LD	A,(BPAT)
+		CP	50H
+		JP	NZ,BCG2
+		ASIGN8.	(BPAT),54H
+		JP	BCHG
+BCG2:		ASIGN8.	(BPAT),50H
+BCHG:		PCALL	SPNAME,1,(BPAT)
+		SUB8.	(BX),2
+		PCALL	SPMOVE,1,070H,(BX)
+		PCALL	SPMOVE,3,070H,(BX)	;EYES SPNAMED EARLIER
+;
+		PCALL	PUTPAT,11,15,0FH	;ENLARGED PEG
+		RET
+;
+		END							
