@@ -5,6 +5,13 @@ This repository contains software recovered from 4 decade old floppy disks in th
 This archive is licensed under the Apache 2.0 License:
 http://www.apache.org/licenses/LICENSE-2.0
 
+## nabu-pacman
+
+Contains the entire Z80 Assembler source code to NABU PAC-MAN, by Leo Binkowski and Laura Schening, circa 1983-1984.
+
+A walkthrough of how it was written can be found here:
+
+[![NABU PAC-MAN - May the source be with you](http://img.youtube.com/vi/at_IriUvBxU/0.jpg)](http://www.youtube.com/watch?at_IriUvBxU)
 
 ## nabu-title-z80-example
 
