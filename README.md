@@ -13,6 +13,10 @@ A walkthrough of how it was written can be found here:
 
 [![NABU PAC-MAN - May the source be with you](http://img.youtube.com/vi/at_IriUvBxU/0.jpg)](http://www.youtube.com/watch?at_IriUvBxU)
 
+Additionally, a discussion thread can be found here:
+
+https://forums.nabu.ca/viewtopic.php?t=163
+
 ## nabu-title-z80-example
 
 Contains the starting point of a Z80 based application for NABU, and the CP/M CABLOAD.COM and CABSERVE.COM utilities for using the resulting software with an orginal NABU PC or MAME running NABU connected the NABU RetroNet at https://nabu.ca
