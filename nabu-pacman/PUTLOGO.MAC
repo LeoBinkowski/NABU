@@ -1,0 +1,94 @@
+   		.Z80
+		.RADIX 10
+		CSEG
+
+		EXTRN	PUTPAT,RPATRN,NLOGO,NDEF
+
+;
+;**************************************************************************
+;
+;
+;	ROUTINE NAME: PUTLO, OR PUTLOGO
+;
+;------------------------------------------
+;
+;	FILE NAME: PUTLOGO.MAC
+;
+;	DESCRIPTION:
+;		
+;	This routine will put a nabu designed logo onto a graphics 1
+;	screen.  The X and Y position of the left hand upper corner 
+;	of the logo must be specified.
+;	
+;	AUTHOR: Warren Belkin and Chang Chow
+;
+;	DATE: Aug 1984 
+;
+;	PARAMETERS PASSED
+;		C reg - X location of logo
+;		E reg - Y location of logo
+;
+;	PARAMETERS RETURNED:
+;
+;	REGISTERS CLOBBERED: all
+;
+;	GLOBALS ACCESSED:
+;
+;	GLOBALS WRITTEN:
+;
+;	COMMENTS and WARNINGS:
+;
+;	It is possible to enter the routine through the global 
+;	DOLOGO or DOLOG as long as the globals PSET contains the
+;	address of the pattern set to be loaded and PDEF contains
+;	address of the pattern block created in GRED. Also the 
+;	X and Y coordinates of the logo must be passed in the 
+;	same registers as in PUTLOGO.
+;
+;
+XLOC:		DW 0
+YLOC:		DW 0
+PSET::		DW 00
+PDEF::		DW 00
+
+PUTLO::
+PUTLOGO::
+		LD	HL,NLOGO
+		LD	(PSET),HL
+		LD	HL,NDEF	
+		LD	(PDEF),HL
+;
+DOLOG::
+DOLOGO::	LD	B,0
+		LD	D,0
+         	LD	(XLOC),BC	;SAVE X AND Y
+		LD	(YLOC),DE
+		LD	BC,(PSET)
+		CALL	RPATRN		;READ PATTERN SET IN
+		LD	HL,(PDEF)
+;
+GETBLK:		LD	C,(HL)		;GET X POS.
+		INC	HL
+		LD	E,(HL)		;GET Y POS.
+		INC	HL
+		PUSH	HL		;SAVE IT
+		LD	L,(HL)		;GET PATTERN NO,
+		LD	A,0FFH
+ 		CP	C		;IS END?
+		JR	Z,DONE
+		LD	A,(XLOC)	;ADD RELATIVE
+		ADD	A,C
+		LD	C,A
+		LD	A,(YLOC)
+		ADD	A,E
+		LD	E,A
+		CALL	PUTPAT		;PUT PATTERN
+		POP	HL
+		INC	HL
+		JR	GETBLK		;KEEP DOING THIS
+;
+DONE:		POP	HL		;GET RID OF STACK EXTRA
+ 		RET
+;
+		END
+

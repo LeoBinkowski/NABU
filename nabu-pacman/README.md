@@ -33,5 +33,4 @@ CABUILD.COM - changes a CP/M .COM file into a NABU .PAK segment file.
 CABSERVE.COM - allows one NABU PC to emulate a NABU adapter to load NABU segments.
 PLINK-II.COM - Allows code larger than 32K to be linked.
 
-NA2LOGO.REL and PUTLOGO.REL are object files because the source has not yet been found.
 
