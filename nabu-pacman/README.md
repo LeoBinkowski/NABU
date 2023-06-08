@@ -12,8 +12,9 @@ of the NABU Network of Ottawa Canada, 1982-1984
 ## How to build
 
 Requires:
-- Microsoft Macro-80 Assembler for CP/M (M80.COM) and
-- Microsoft Link-80 Linker (L80.COM).
+- Microsoft Macro-80 Assembler for CP/M (M80.COM)
+- Microsoft LIB-80 Library Manager for CP/M (LIB80.COM)
+- Phoenix Software Assoc. Linker for CP/M (PLINK-II.COM)
 
 on a CP/M 2.2 or CP/M 3.0 drive where the files in this folder have been copied.
 
