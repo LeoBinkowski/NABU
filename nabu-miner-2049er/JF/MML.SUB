@@ -1,0 +1,6 @@
+M80 =$1
+LIB JLIB=MAP,CATMAP,MONTSK,JFMON,RANDOM,ADSCOR,TIME,DOSCR,SCREENS/E
+L80 B:LEOLIB,JLIB,MINER/N/Y/E:MINER
+MCPUP
+MINER
+

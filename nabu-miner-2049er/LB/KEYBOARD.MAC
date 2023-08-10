@@ -1,0 +1,137 @@
+	.Z80
+	.RADIX	10
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE	LINKTAB.EXA
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:             KEYBOARD.MAC  	                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90038680 NAME:  MINER 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      This file is run as a task from the main program.        *
+;*      It reads the keyboard and leave a value in KEYPRS        *
+;*      according to what was read                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   24 MAY 84    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+	EXTRN	JOY_UP,JOY_DOWN,JOY_LEFT,JOY_RIGHT,FIRE_BUTTON
+	EXTRN	PLAYER,PREPLA,CURPIK
+;
+KEYPRS::DB	00H
+FREAD:	DB	00H
+;
+KEYBRD::
+	XOR	A
+	LD	(KEYPRS),A
+	N.DEVRDY KEYBOARD,KEYSTROKE	;KEYBOARD DATA READY?
+	AND	A			
+	JR	Z,CHKJOY		;NO...TRY THE JOYSTICKS
+	N.DEVIO	KEYBOARD,KEYSTROKE	;YES..READ IT
+	LD	(KEYPRS),A		;SAVE IT
+	;
+CHKJOY:	
+	LD	A,(CURPIK)
+	CP	3			;IF PICKED TWO PLAYER TWO JOYSTICKS
+	JR	NZ,DO1P			;OTHERWISE JUST USE 1
+	;
+	LD	A,(PREPLA)		;GET THE CURRENT PLAYER
+	CP	1
+	JR	NZ,CHK2JOY		;IF SECOND PLAYER READ JOYSTICK 2
+	;
+DO1P:	N.DEVRDY KEYBOARD,JSTCK1	;JOYSTICK 1 READY?
+	AND	A
+	RET	Z			;NO...CHECK # 2
+	N.DEVIO	KEYBOARD,JSTCK1		;YES...READ IT
+	JR	SETFLG
+CHK2JOY:
+	N.DEVRDY KEYBOARD,JSTCK2	;DO THE SAME FOR JOYSTICK 2
+	AND	A
+	RET	Z
+	N.DEVIO	KEYBOARD,JSTCK2
+SETFLG:
+	PUSH	AF
+	CALL	CLRALL
+	POP	AF
+	BIT	4,A			;GET EACH FLAG ACCORDING TO THE BITS
+	PUSH	AF
+	CALL	NZ,FIREB
+	POP	AF
+	BIT	3,A
+	PUSH	AF
+	CALL	NZ,UPDIR
+	POP	AF
+	BIT	2,A
+	PUSH	AF
+	CALL	NZ,RTDIR
+	POP	AF
+	BIT	1,A
+	PUSH	AF
+	CALL	NZ,DNDIR
+	POP	AF
+	BIT	0,A
+	PUSH	AF
+	CALL	NZ,LTDIR
+	POP	AF
+	BIT	4,A
+	CALL	Z,CLRNOT	
+	RET
+FIREB:
+	LD	A,(FREAD)
+	AND	A
+	RET	NZ
+	LD	A,1
+	LD	(FIRE_BUTTON),A
+	LD	(FREAD),A
+	RET
+CLRNOT:	
+	XOR	A
+	LD	(FREAD),A
+	RET
+UPDIR:
+	LD	A,1
+	LD	(JOY_UP),A
+	RET
+RTDIR:
+	LD	A,1
+	LD	(JOY_RIGHT),A
+	RET
+DNDIR:	LD	A,1
+	LD	(JOY_DOWN),A
+	RET
+LTDIR:	LD	A,01
+	LD	(JOY_LEFT),A
+	RET
+CLRALL:	
+	;THIS ROUTINE WILL CLEAR ALL OF THE FLAGS BEFORE EXECUTING THE ROUTINE
+	;
+	XOR	A
+	LD	(FIRE_BUTTON),A
+	LD	(JOY_UP),A
+	LD	(JOY_RIGHT),A
+	LD	(JOY_DOWN),A
+	LD	(JOY_LEFT),A
+	RET
+	END
+
+
+

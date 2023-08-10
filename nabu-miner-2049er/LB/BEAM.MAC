@@ -1,0 +1,192 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:             BEAM.MAC      	                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  MINER 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      This file contains the code that will allow bounty       *
+;*      Bob to "beam", or transport to another level of the      *
+;*      screen.                                                  *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+	.Z80
+	.RADIX	10
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	MINER.EQU
+	INCLUDE LINKTAB.EXA
+	.LIST
+	;
+	MATR	EQU	0
+	DEMATR	EQU	0FFH
+	SMATR	EQU	2
+	TRBOB	EQU	0FFH
+	NONE	EQU	00H
+	FAKE1BOB EQU	5
+	FAKE2BOB EQU	6
+	R.85BOB	EQU	68H
+	R.75BOB	EQU	70H
+	R.50BOB	EQU	78H
+	R.25BOB	EQU	80H
+	;
+	EXTRN	BOB_STATUS,MBSPR,BOBY,TRRCOL,SBEAM
+	;
+TRLEV::	DB	00H	;Level which Bob wants to transport to
+TRCOUNT::DB	00H	;Counter when Bob is finished=amount of time until next us
+TRGOX::	DB	00H	;X coordinate to transport to
+TRGOY::	DB	00H	;Y coordinate to transport to
+TRFRX::	DB	00H	;X coordinate to transport from
+TRFRY::	DB	00H	;Y coordinate to transport from
+TRENT::	DW	0000H	;CURRENT ENTRY TO TRANSPORTER
+TRENTPTR::
+	DW	0000H	;Pointer to current entry
+TRSEG::	DB	00H	;Flag saying which part of the process we are doing
+TRTIMR::DB	00H	;AMOUNT of time until transporter can be used again
+;
+;
+;
+;		ROUTINE NAME:	BEAM
+;		FILE NAME:	BEAM.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:		FEBRUARY 22, 1983
+;
+;	DESCRIPTION:
+;
+;	This routine will transport bob to another level of the screen
+;
+;	PARAMETERS PASSED:
+;
+;				TRGOY	-  Y COORD WE SHOULD GO TO
+;				TRFRY	-  Y COORD WE ARE COMING FROM
+;				
+;	PARAMETERS RETURNED:
+;
+;	GLOBALS ACESSED:
+;
+;	COMMENTS AND WARNINGS:
+BEAM::
+	IF8. (TRSEG),.EQ.,DEMATR
+	  LD	HL,(TRENTPTR)		;GET THE CURRENT ENTRY
+	  LD	A,(HL)
+	  INC	HL
+	  LD	(TRENTPTR),HL
+	  LD	(TRENT),A
+	  IF16.	(TRENTPTR),.EQ.,ENDDMATR ;IF AT THE END OF THE ENTRIES
+	    ASIGN8. (TRSEG),MATR	;GO ON TO THE NEXT SEGMENT
+	    ASIGN8. (SBEAM),SMATR	;SET THE SOUND TO REDO
+	  ELSE.
+	    IF8. (TRENT),.EQ.,NONE
+	      PCALL FAKEMOVE,0FEH,(TRGOX)
+	      CALL RIDBOB
+	    ELSE.
+	      IF8. (TRENT),.EQ.,TRBOB
+	        ASIGN8. (BOBY),(TRFRY)
+	        PCALL MBSPR,0,0
+	      ELSE.
+		PCALL SPNAME,FAKE1BOB,(TRENT)
+	        LD	A,(TRENT)
+	        ADD	A,4
+		LD	E,A
+	 	PCALL SPNAME,FAKE2BOB
+		PCALL FAKEMOVE,(TRFRY),(TRFRX)
+		PCALL SPCOLR,FAKE1BOB,WHITE
+		PCALL SPCOLR,FAKE2BOB,WHITE
+	        CALL  RIDBOB
+	      ENDIF.
+	    ENDIF.
+	  ENDIF.
+	ELSE.
+	  LD	HL,(TRENTPTR)
+	  LD	A,(HL)
+	  LD	(TRENT),A
+	  DEC	HL
+	  LD	(TRENTPTR),HL
+	  IF16. (TRENTPTR),.EQ.,TRRTBL
+	    PCALL FAKEMOVE,0FEH,(TRGOX)
+	    ASIGN8. (BOBY),(TRGOY)
+	    PCALL   MBSPR,0,0
+	    ASIGN8. (BOB_STATUS),OK
+	    ASIGN8. (TRTIMR),0FFH	;SET TO ABOUT 4.3 SECONDS
+	    ASIGN8. (TRRCOL),1
+	  ELSE.
+	    IF8. (TRENT),.EQ.,NONE
+	      PCALL FAKEMOVE,0FEH,(TRGOX)
+	    ELSE.
+	      IF8. (TRENT),.EQ.,TRBOB
+	        ASIGN8. (BOBY),(TRGOY)
+	        PCALL MBSPR,0,0
+	      ELSE.
+		PCALL FAKEMOVE,(TRGOY),(TRGOX)
+		PCALL SPNAME,FAKE1BOB,(TRENT)
+	        LD A,(TRENT)
+		ADD A,4
+		LD E,A
+		PCALL SPNAME,FAKE2BOB
+	        CALL RIDBOB
+	      ENDIF.
+	    ENDIF.
+	  ENDIF.
+	ENDIF.
+	RET
+;
+RIDBOB:
+	;	This routine will move bob off the screen. (out of view)
+	;
+	ASIGN8. (BOBY),0FEH
+	PCALL	MBSPR,0,0
+	RET
+	;
+FAKEMOVE::
+	LD	L,E
+	LD	A,C
+	ADD	A,-10H
+	LD	E,A
+	LD	C,FAKE1BOB
+	PUSH	DE
+	PUSH	HL
+	CALL	SPMOVE
+	LD	BC,16
+	POP	DE
+	POP	HL
+	SBC	HL,BC
+	EX	DE,HL
+	LD	BC,FAKE2BOB
+	CALL	SPMOVE
+	RET
+	;
+	DB	TRBOB
+;
+TRRTBL::
+	DB	TRBOB,TRBOB
+	DB	R.85BOB,TRBOB,R.85BOB,TRBOB,R.85BOB,TRBOB,R.85BOB,TRBOB
+	DB	R.85BOB,R.75BOB,R.85BOB,R.75BOB,R.85BOB,R.75BOB,R.85BOB
+	DB	R.75BOB,R.50BOB,R.75BOB,R.25BOB,R.75BOB,R.25BOB,R.75BOB
+	DB	R.50BOB,R.25BOB,R.50BOB,R.25BOB,R.50BOB,R.25BOB,R.50BOB
+	DB	R.25BOB,NONE,R.25BOB,NONE,R.25BOB,NONE,R.25BOB,NONE,R.25BOB
+	DB	NONE
+ENDDMATR::
+	DB	NONE
+	END
+
+

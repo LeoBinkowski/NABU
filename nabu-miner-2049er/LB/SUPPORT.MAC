@@ -1,0 +1,166 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:             SUPPORT.MAC   	                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  MINER 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      THIS FILE CONTAINS THE SUPPORT ROUTINES FOR MINER 2049ER *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+	.Z80
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	LINKTAB.EXA
+	.LIST
+;
+;		ROUTINE NAME:	SUBABS
+;		FILE NAME:	SUPPORT.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:
+;
+;	DESCRIPTION:
+;
+;	THIS ROUTINE WILL RETURN THE ABSOLUTE VALUE OF AN 8 BIT SUBTRACTION
+;
+;	PARAMETERS PASSED:
+;
+;	C- NUMBER TO SUBTRACT FROM
+;	
+;	E- NUMBER TO SUBRACT 
+;				
+;	PARAMETERS RETURNED:
+;
+;	A- ABSOLUTE VALUE OF THE SUBTRACTION
+;
+;	GLOBALS ACESSED:
+;
+;	NONE
+;
+;	COMMENTS AND WARNINGS:
+;
+;
+SUBABS::
+	LD	A,E	;GET THE SECOND PARAMETER
+	SUB	C	;COMPARE IT TO THE FIRST
+	RET	NC	;IF NO PROBLEM THEN RETURN
+	;
+	LD	A,C	;OTHERWISE DO IT THE OTHER WAY
+	SUB	E
+	RET
+;
+;		ROUTINE NAME:	CHKCOOR
+;		FILE NAME:	SUPPORT.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:		FEBRUARY 18, 1983
+;
+;	DESCRIPTION:
+;
+;	This routine will check the coordinates given if they are
+;	close enough within the specified range.
+;
+;
+;	PARAMETERS PASSED:
+;			BC-	ADDRESS OF FIRST X COORDINATE.
+;			DE-	ADDRESS OF SECOND X COORDINATE.
+;
+;	NOTE: FOR THESE, THE Y BYTE MUST IMMEDIATELY FOLLOW THE X
+;
+;			L-	SPECIFIED RANGE.
+;
+;				
+;	PARAMETERS RETURNED:
+;			FLAG REGISTER	CARRY SET IF TRUE
+;					NO CARRY IF FALSE
+;
+;	GLOBALS ACESSED:
+;
+;	COMMENTS AND WARNINGS:
+;
+;	FOR COORDINATES, THE Y BYTE MUST IMMEDIATELY FOLLOW THE X
+;	IN OTHER WORDS:
+;
+;		X::	DB	00H
+;		Y::	DB	00H
+;
+;
+CHKCOOR::
+	PUSH	BC
+	POP	IX
+	PUSH	DE
+	POP	IY
+	LD	C,(IX)	;GET THE FIRST X
+	LD	E,(IY)	;GET THE SECOND	X
+	CALL	SUBABS	;COMPARE EM
+	CP	L	;ARE THEY LESS THAN THE LIMIT?
+	JR	NC,NOGO	;NO...THEN RETURN
+	LD	C,(IX+1) ;GET THE FIRST Y
+	LD	E,(IY+1) ;GET THE SECOND Y
+	CP	L	 ;ARE THEY LESS THAN THE LIMIT?
+	JR	NC,NOGO	;WE'LL CHECK WHERE IT CAME FROM.
+	XOR	A
+	RET
+NOGO:	LD	A,0FFH
+	AND	A
+	RET
+;
+;		ROUTINE NAME:	ONCOOR
+;		FILE NAME:	SUPPORT.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:		FEBRUARY 22, 1984
+;
+;	DESCRIPTION:
+;
+;	The zero flag will be set if the coordinates match.
+;
+;	PARAMETERS PASSED:
+;				BC- ADDRESS OF X COORDINATE
+;				DE- ADDRESS OF SECOND X COORDINATE
+;	PARAMETERS RETURNED:
+;
+;				ZERO FLAG -SET IF TRUE
+;				CLEAR IF NOT
+;
+;	GLOBALS ACESSED:
+;
+;	COMMENTS AND WARNINGS:
+;
+;	Y COORDINATE MUST IMMEDIATELY FOLLOW THE X BYTE VALUE.
+;
+;
+ONCOOR::
+	PUSH	BC
+	POP	IX
+	PUSH	DE
+	POP	IY
+	LD	A,(IX)
+	CP	(IY)
+	RET	NZ
+	LD	A,(IX+1)
+	CP	(IY+1)
+	RET
+	END
+
+

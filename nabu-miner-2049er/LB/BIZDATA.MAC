@@ -1,0 +1,26 @@
+        .Z80
+        ; Recreated by Leo Binkowski 14-Jun-2023
+        ;
+        ; This file was deleted from the official source in order to hide the easter egg.
+        ; I used a hex editor to pull it from the .COM file, but changed it to include Lisa
+        ; instead.
+BIZDATA::
+        DB '        PROGRAMMED BY           '
+        DB '        LEO BINKOWSKI           '
+        DB '             -AND-              '
+        DB '       JOAQUIN FERNANDEZ        '
+        DB '                                '
+        DB '     SCREENS BY PAT ALLISON     '
+        DB '                                '
+        DB '    LISA BINKOWSKI DESERVES TO  '
+        DB '   SEE HER NAME IN MINER 2049ER '
+        DB '                                '
+        DB '    DEDICADO CON MUCHO AMOR A   '
+        DB '            MARCIA              '
+        DB '            JEFF                '
+        DB '            JILL                '
+        DB '        Y  ANDREA               '
+        DB '                                '
+        DB '                                '
+        END
+

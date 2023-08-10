@@ -1,0 +1,190 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:             SLIDE.MAC     	                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  MINER 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      This file will control Bob falling down the slides.      *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 	.Z80	
+	.RADIX	10
+	.XLIST
+	INCLUDE COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	LINKTAB.EXA
+	INCLUDE	MINER.EQU
+	INCLUDE ARITH.MRO
+	.LIST
+	;
+	SLEFT	EQU	01H
+	SRIGHT	EQU	02H	;SLIDING CONSTANTS
+	JUSTDOWN EQU	00H
+	;
+;
+;		ROUTINE NAME: 	SLIDE
+;		FILE NAME:	SLIDE.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:		February 15, 1984
+;
+;	DESCRIPTION:
+;
+;	Will control Bob falling down the slides.  First it will get
+;	from the pointer passed by CHKBOB the location of the other 
+;	parameters.  Then it will make Bob slide.
+;
+;
+;	PARAMETERS PASSED:
+;		
+;		SLIPTR	-pointer to this slides data
+;				
+;	PARAMETERS RETURNED:
+;
+;	GLOBALS ACESSED:
+;
+;	COMMENTS AND WARNINGS:
+EXTRN	SUBABS,BOBFT,BOBFACE,BOBX,BOBY,BOB_STATUS,MBSPR,SJUMP
+GOTSPTR::DB	00H		;FLAG set if we've got the slide values
+SLIPTR:: DW	00H		;SLIDE table pointer from CHKBOB
+SLDIR:: DB	00H		;Direction bob is sliding in
+SLICNT:: DB	00H		;Slide counter to see if we should slide down
+STOPX::	DB	00H
+STOPY::	DB	00H
+SBOTX::	DB	00H
+SBOTY::	DB	00H
+SINCNT::DB	00H
+;
+SLIDE::
+	LD	A,(GOTSPTR)	;GET THE SLIDE POINTER FLAG AND DIRECTION
+	AND	A
+	CALL	Z,GETSPTR	;IF WE HAVEN'T GOT THE VALUES AND DIRECTION
+	;			;THEN GET THEM
+	LD	A,(SBOTY)
+	DEC	A
+	LD	BC,(BOBY)
+	DEC	C
+	CP	C
+	JR	NZ,YESLID
+	XOR	A
+	LD	(GOTSPTR),A
+	ASIGN8. (BOB_STATUS),OK
+	ASIGN8. (BOBX),(SBOTX)
+	ASIGN8.	(SJUMP),0
+	;
+	IF8.	(BOBFACE),.EQ.,FACERT	;GET RID OF THE JUMPING FEET
+	  ASIGN8. (BOBFT),FEETRT
+	  PCALL MBSPR,0,0
+	ELSE.
+	  ASIGN8. (BOBFT),FEETLT
+	  PCALL MBSPR,0,0
+	ENDIF.
+	ASIGN8. (BOBY),(SBOTY)
+	RET
+YESLID:
+	;
+	IF8.	(SLICNT),.LT.,6	;IF WITHIN THE FIRST SIX PIXELS OF THE CATWALK
+	  ADD8. (SLICNT),1	;MAKE HIM SLIDE ANYWAYS
+	  PCALL	MBSPR,0,1	;MOVE BOB DOWN
+	ENDIF.
+	;
+	IF8.	(SLDIR),.EQ.,SRIGHT
+	  ASIGN8. (BOBFT),RTJPFT	;FACE BOB IN THE RIGHT DIRECTION AND
+	  ASIGN8. (BOBFACE),FACERT	;PUT HIS FEET IN THE AIR
+	  LD	A,(SINCNT)	;TO MAKE SURE HE'S ON THE RIGHT ANGLE
+	  CP	1
+	  JR	Z,DON1RST
+	  AND	A		;IS IT ZERO?
+	  JR	Z,RSTRGT
+	  ;
+	  SUB8. (SINCNT),1
+	  PCALL	MBSPR,2,1	;MOVE 30 DEGREES RIGHT
+	  RET
+RSTRGT:
+	  LD	A,4
+	  LD	(SINCNT),A	;RESET THE SINE COUNT
+DON1RST:  PCALL	MBSPR,1,1	;MOVE ~29 DEGREES
+ 	  SUB8. (SINCNT),1
+	  RET
+	ELSE.
+	  IF8.	(SLDIR),.EQ.,SLEFT ;IF GOING LEFT
+	    ASIGN8. (BOBFT),LTJPFT	;FACE BOB LEFT AND PUT HIS FEET IN THE
+	    ASIGN8. (BOBFACE),FACELT	;AIR
+	    LD A,(SINCNT)	   ;GET THE SINE COUNT
+	    CP	1
+	    JR  Z,DON2RST
+	    AND	A		   ;IS IT ZERO?
+	    JR	Z,RSTLFT	   ;YES....THEN RESET IT
+	    ;
+	    PCALL MBSPR,-2,1	   ;OTHERWISE JUST MOVE IT
+	    SUB8. (SINCNT),1	   
+	    RET
+RSTLFT:
+	    LD	A,4
+	    LD	(SINCNT),A
+DON2RST:    PCALL MBSPR,-1,1
+	    SUB8. (SINCNT),1
+	    RET
+	  ELSE.
+	    IF8. (BOBFACE),.EQ.,FACELT	;MAKE SURE THE FEET GO IN THE RIGHT
+	      ASIGN8. (BOBFT),LTJPFT	;DIRECTION WHEN GOING STRAIGHT DOWN
+	    ELSE.
+	      ASIGN8. (BOBFT),RTJPFT
+	    ENDIF.
+	    PCALL MBSPR,0,1	;MOVE HIM
+	    RET
+	  ENDIF.
+	ENDIF.
+	RET
+GETSPTR:	
+	LD	HL,(SLIPTR)	;GET THE CURRENT POINTER IN THE SLIDE TABLE
+	LD	A,(HL)		;GET THE FIRST NUMBER (TOPX)
+	LD	(STOPX),A	;SAVE IT
+	INC	HL		;GO TO NEXT
+	LD	A,(HL)		;GET THE NEXT (TOPY)
+	LD	(STOPY),A	;SAVE IT
+	INC	HL		;GO TO NEXT
+	LD	A,(HL)		;GET THE NEXT (BOTX)
+	LD	(SBOTX),A	;SAVE IT
+	INC	HL		;GO TO NEXT
+	LD	A,(HL)		;GET THE LAST (BOTY)
+	LD	(SBOTY),A	;SAVE IT
+	;
+	IF8.	(STOPX),.GT.,(SBOTX)	;SET THE DIRECTION OF SLIDING
+	  ASIGN8. (SLDIR),SLEFT
+	ELSE.
+	  IF8.	(STOPX),.LT.,(SBOTX)
+	    ASIGN8. (SLDIR),SRIGHT
+	  ELSE.
+	    ASIGN8. (SLDIR),JUSTDOWN
+	  ENDIF.
+	ENDIF.
+	ASIGN8.	(SINCNT),4
+	ASIGN8.	(GOTSPTR),TRUE	;MAKE SURE WE DON'T RUN THRU AGAIN.
+	ASIGN8.	(SLICNT),0
+	ASIGN8.	(SJUMP),4
+	RET
+	END
+
+

@@ -1,0 +1,241 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:             MINER.MAC     	                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90038680 NAME:  MINER 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      This is the main line for Miner 2049er                   *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    02   27 JUN 84	L. Binkowski	fix platform bug	 *
+;*								 *
+;*    01   24 MAY 84    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+;
+;
+	.Z80
+	.RADIX	10
+	.PRINTX	/MINER 2049er MAINLINE CODE...JUNE 27, 1984/
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	CLKAT.MRO
+	INCLUDE MINER.EQU
+	INCLUDE	LINKTAB.EXA
+	;
+	CHEAT_KEY EQU	8CH
+	;
+	EXTRN	BOB_CONTROL,BOB_STATUS,SHELL,KEYPRS,KEYBRD,OPTION,ENDGAM,ENDSCR
+	EXTRN	RESTART,HELP,BOBSPR,INIT_BOB,MBSPR,TRLEV,SNDFLG
+	EXTRN	SETD6,PUTSCR,DISBOB,INIT_SCR,PLATMOV,SOUND
+	EXTRN	NUMPLA,JFMAIN,GAMINI,MOVELIFT,LIFTX,LIFTY,LIFTMAIN,LIFT,ONLIFT
+	EXTRN	CANX,CANY,MOVECAN,LEV1,LEV2,KEEPCLEAR,GOTSPTR,TIMOUT,INITSND
+	EXTRN	NUMPLA,PLAY1,PLAY2,BOOMBOB,HI_JMP,TRTIMR,JOY_DOWN,FIRE_BUTTON
+	;
+	;OPTION MESSAGE DEFINITION
+	;
+A1:	DEFMSG	3,12,'ONE PLAYER'
+A2:	DEFMSG	3,14,'TWO PLAYERS  ONE JOYSTICK'
+A3:	DEFMSG	3,16,'TWO PLAYERS  TWO JOYSTICKS'
+A4:	DEFMSG	10,1,'MINER 2049er'
+A5:	DEFMSG	3,9,'OPTIONS:'
+SOM:
+	DW	A1,A2,A3,A4,A5
+EOM:
+	;
+	;	GAME VARIABLES (MORE IN BOB.MAC)
+	;
+CURPIK::DB	1			;SET INITIAL PICK TO 1
+KEYTCB::DS	6			;TASK CONTROL BLOCK FOR KEYBOARD.
+BOBTCB::DS	6			;Task control block for BOB
+DISTCB::DS	6			;Task control block for DISBOB
+PLATCB::DS	6			;Task control block for PLATMOV
+SNDTCB:	DS	6			;TASK CONTROL BLOCK FOR SOUND
+CHEATING::DB	00H			;Cheating flag
+	;
+MINER::
+.MAIN.::
+	LD	SP,(6)		;SET STACK POINTER
+	JP	SHELL
+MSTART::
+	PCALL	CLKPRM,3,0
+	PCALL	OPTION,SOM,EOM,030BH
+	LD	(CURPIK),A
+	LD	(NUMPLA),A
+POSTOP::
+	LD	A,(NUMPLA)		;MAKE SURE THE NUMBER OF PLAYERS
+	CP	3			;DOESN'T GET SCREWED UP.
+	JR	NZ,P1OSTOP
+	;
+	ASIGN8.	(NUMPLA),2
+P1OSTOP:
+	ASIGN8.	(PLAY1),3
+	IF8.	(NUMPLA),.EQ.,2		;IF ONLY ONE PLAYER, DON'T GIVE
+	  ASIGN8. (PLAY2),3		;ANY MEN TO THE SECOND PLAYER
+	ELSE.
+	  ASIGN8. (PLAY2),0
+	ENDIF.	  
+	ASIGN8.	(CHEATING),00H
+	CALL	GAMINI		;INITIALIZE THE GAME (JOAQUIN)
+	CALL	SETVDP
+	CALL	INITSND
+	ASIGN8. (SNDFLG),TRUE
+	ASIGN8.	(TRTIMR),0
+NEWSCR::
+	ASIGN8.	(KEEPCLEAR),TRUE
+	SETSK	DISBOB,DISTCB,1,1
+	SETSK	KEYBRD,KEYTCB,1,1
+	SETSK	PLATMOV,PLATCB,2,1
+	SETSK	SOUND,SNDTCB,1,1
+	CALL	PUTSCR
+	ASIGN8.	(KEEPCLEAR),FALSE
+	CALL	VBLKOFF
+GOTOIT:
+	; This initialization section must be run before the start of the
+	; game.
+	;
+	XOR	A
+	LD	(KEYPRS),A		;MAKE SURE OLD VALUES DON'T AFFECT IT.
+	;
+	;				;SCREEN
+DRIVER::
+	LD	A,(KEYPRS)	;CHECK FOR ALL OF THE RELEVANT KEYS
+	CP	KEY_UC_RESTART
+	JP	Z,RSTART
+	;
+	CP	KEY_LC_RESTART
+	JP	Z,RSTART
+	;
+	CP	KEY_HELP
+	JP	Z,HLP
+	;
+	CP	CHEAT_KEY
+	JP	Z,CHEAT
+	;
+	CP	KEY_CTRL_Z
+	JP	Z,DEBUG
+	;
+	CP	20H		;SPACE?
+	JR	Z,LIFTEN	;SEE IF WE ENABLE THE LIFT.
+	;
+	CP	35H		;HERE WE CHECK FOR THE TRANSPORTER KEYS
+	JR	NC,CONTDR
+	CP	30H
+	JR	C,CONTDR
+	AND	0FH
+	LD	(TRLEV),A
+	LD	A,(KEYPRS)
+	;
+CONTDR:	
+	;
+	LD	A,(CHEATING)
+	AND	A
+	JR	Z,CONTCH
+	;
+	LD	A,(KEYPRS)
+	AND	05FH
+	CP	4BH
+	JR	NC,CONTCH
+	CP	40H
+	JR	C,CONTCH
+	;
+	AND	0FH
+	DEC	A
+	LD	(LEV1),A
+	LD	(LEV2),A
+DOCHEA::ASIGN8.	(INIT_SCR),TRUE
+CONTCH:
+	CALL	JFMAIN		;CALL JOAQUIN'S MAINLINE FOR CATWALK AND
+	;			PRIZE RESTITUTION
+	IF8.	(ENDGAM),.EQ.,TRUE	;IF END OF GAME, STOP
+	  CALL	ALLOFF
+	  JP	ENDSCR
+	ENDIF.
+	;
+	CALL	LIFTMAIN
+	JP	DRIVER
+LIFTEN:	
+	IF8.	(ONLIFT),.EQ.,TRUE
+	  LD	A,(LIFT)
+	  XOR	1
+	  LD	(LIFT),A
+	  ASIGN8. (KEYPRS),0
+	ENDIF.
+	JP	DRIVER
+	;
+DEBUG::	ASIGN8. (KEYPRS),00H
+	JP	DRIVER
+RSTART::CALL	ALLOFF		;MAKE SURE EVERYTHING IS OFF
+	CALL 	VBLKON
+	JP	RESTART
+HLP::	CALL	ALLOFF
+	JP	HELP
+CHEAT:	LD	A,(JOY_DOWN)
+	AND	A
+	JR	Z,CH1
+	ASIGN8.	(CHEATING),TRUE
+CH1:	ASIGN8.	(KEYPRS),00H
+	JP	DRIVER
+ALLOFF:	
+	;THIS ROUTINE WILL TURN EVERYTHING OFF (SOUND,TASKS)
+	;
+	ASIGN8.	(KEEPCLEAR),TRUE
+	CALL	CRBEG
+	N.CLKRV	0
+	PCALL	AUDIOWR,7,3FH
+	PCALL	SPMARK,0
+	CALL	CREND
+	RET
+LEO_INIT::
+	;THIS IS CALLED FROM PUTSCR AND IT SETS UP BOB ET ALL
+	;
+	PCALL	VFILL,32*4,0C0H,VATRIAD
+	ASIGN8.	(TIMOUT),0
+	CALL	INIT_BOB	;SET UP BOB
+	SETSK	BOB_CONTROL,BOBTCB,1,1
+	ASIGN8.	(LIFT),FALSE
+	PCALL	MOVECAN,0
+	ASIGN8.	(KEEPCLEAR),FALSE
+	LD	(GOTSPTR),A
+	LD	(BOOMBOB),A
+	LD	(TRTIMR),A
+	ASIGN8.	(HI_JMP),MAXHEIGHT
+	RET
+	;
+SETVDP::
+ 	PCALL	VSETG2			;GRAPHICS II
+;	PCALL	VFILL,4000H,VPTRNAD,0H	;CLEAR THE PATTERN TABLE & VRAM
+;	PCALL	VPTRNST,VPTRNAD		;SET UP ALL OF THE VRAM POINTERS
+;	PCALL	VNAMEST,VNAMEAD
+;	PCALL	VSPRIST,VSPRIAD
+;	PCALL	VATRIST,VATRIAD
+;	PCALL	VCOLRST,VCOLRAD
+;	SETCOLR	BLACK,BLACK		;SET THE BACKGROUND COLOUR
+	PCALL	LPATRN,BOBSPR,VSPRIAD	;LOAD IN BOB PATTERNS
+	RET
+	;
+	;
+	;
+	END
+
+

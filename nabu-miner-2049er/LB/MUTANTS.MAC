@@ -1,0 +1,72 @@
+;
+;	This file contains the code for the mutants.
+;	Most of it is run as a task.
+;
+;
+MUTANT:
+;
+;	There will be a table for each level that contains data
+;	pertaining to each mutant that exists on that screen.
+;
+;	The table will be arranged thusly:
+;
+;	# OF ENTRIES IN TABLE
+;	for entry n
+;		INTERVAL (IN TICKS)
+;		INITIAL INTERVAL,COUNTER
+;		Y POSITION
+;		CURRENT X POSITION
+;		LEFT X THRESHOLD
+;		RIGHT X THRESHOLD
+;		INITIAL DIRECTION,DIRECTION
+;
+;
+;
+;	FOR #_OF_ENTRIES DO
+;		IF COUNTER = 0 THEN
+;		   DO NEXT MUTANT
+;		ENDIF
+;		COUNTER := COUNTER - 1
+;		IF DIRECTION = LEFT
+;		  X_POSITION := X_POSITION - 2
+;		  IF X_POSITION <= LEFT_X_THRESHOLD THEN
+;		    DIRECTION := RIGHT
+;		  ENDIF
+;		ELSE
+;		  X_POSITION := X_POSITION + 2
+;		  IF X_POSITION >= RIGHT_X_THRESHOLD THEN
+;		    DIRECTION := LEFT
+;		  ENDIF
+;		ENDIF
+;		SPMOVE MUTANT,Y_POSITION,X_POSITION
+;		PCALL MUT_HIT,X_POSITION,Y_POSITION,MUTANT_NUMBER
+;	ENDFOR	
+;
+MUT_HIT:
+;
+;	This routine will decide if bob is overlapping a mutant of some
+;	kind, and if so, will set either the BOB_RADIOACTIVE flag or 
+;	will remove that mutant from the play board.
+;
+	Y_THRESH	EQU	20
+	X_THRESH	EQU	10
+	;
+	PUSH	HL
+	PUSH	BC
+	PCALL	SUBABS,BOBY		;ARE THE Y'S WITHIN THE THRESHOLD
+	CP	Y_THRESH
+	JR	NC,NO_HIT		;NO..THEN CLEAR THE FLAGS
+	POP	DE
+	PCALL	SUBABS,BOBX		;HOW ABOUT THE X'S
+	CP	X_THRESH		
+	JR	NC,NO_HIT		;NO...THEN CLEAR THE FLAGS
+	IF8.	(OBJ_DURATION),.EQ.,0	;ARE THE MUTANTS STILL HAPPY?
+	  ASIGN8. (BOB_RADIOACTIVE),TRUE ;NO...THEN BOB IS NOW RADIOACTIVE
+	ELSE.
+	  LD	HL,(MUT_POINTER)	;GET THE POINTER TO THE CURRENT MUTANT TABLE
+	  LD	A,0FFH			;MAKE THAT MUTANT GO **POOF**
+	  LD	(HL),A			
+	  INC	HL			;SET THE INTERVAL COUNTER
+	  LD	(HL),A		
+	  			
+

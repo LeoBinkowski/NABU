@@ -1,0 +1,767 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:             BOB.MAC	  	                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90038680 NAME:  MINER 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*	This file contains code controlling Bounty bob.          *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   24 MAY 84    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+;	This file contains the code controlling Bounty Bob
+;	AUTHOR:		LEO BINKOWSKI
+;
+	.Z80
+	.RADIX	10
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE ARITH.MRO
+	INCLUDE	LINKTAB.EXA
+	INCLUDE	MINER.EQU
+	.LIST
+	EXTRN	MOVELIFT,BEAM,SLIDE,CHKBOB,NXT_GUY,BOBTCB,MOVECAN,FAKEMOVE
+	EXTRN	CANSP,CANY,RSTCAN,INIT_SCR,TONNAG,TIMOUT,SWALK,SJUMP,SPLAT
+	EXTRN	TRTIMR,TRRCOL,SCANN,SDIE,SRACTIVE,SBEAM,TONFLG
+	BOOMCANNON	EQU	1
+KEEPCLEAR::DB	00H
+BOBX::	DB	00H	;BOB's current x position
+BOBY::	DB	00H	;BOB's current y position
+ANIMFT::DB	00H	;FLAG TO TOGGLE THE FEET ANIMATION
+JMPDIR::DB	00H	;DIRECTION OF A JUMP
+BOB_STATUS::
+	DB	00H	;BOB'S current status
+FIRE_BUTTON::DB 00H	;FLAG to see if the fire button is being pressed
+JOY_LEFT::DB	00H	;FLAG to see if the joystick is pointed left.
+JOY_RIGHT::DB   00H	;FLAG to see if the joystick is pointed right.
+JOY_UP::DB	00H	;FLAG to see if the joystick is pointed up.
+JOY_DOWN::DB	00H	;FLAG to see if the joystick is pointed down.
+JMPCNT::DB	00H	;COUNTER of the distance jumped by BOB.
+FALCNT::DB	00H	;COUNTER of the distance fallen by BOB.
+UPGOING::DB	00h	;FLAG to see if Bob is currently going up in a jump.
+RADIOACTIVE::DB 00H	;FLAG to see if Bob is radioactive.
+LADDER::DB	00H	;FLAG to see if Bob is on a ladder.
+AT_TOP::DB	00H	;FLAG to see if Bob is at the top of a ladder.
+AT_BOT::DB	00H	;FLAG set if bob is at the bottom of a ladder.
+NEAR_TOP::DB	00H	;FLAG to see if Bob is near the top of a ladder.
+LT_CAN_GO::DB	00H	;FLAG to see if Bob can go left.
+RT_CAN_GO::DB	00H	;FLAG to See if Bob can go right.
+CATWALK::DB	00H	;FLAG to see if bob is on a catwalk or platform.
+NO_UP::	DB	00H	;FLAG used for when bob bumps his head.
+ON_LADDER::DB	00H	;FLAG set if Bob on ladder (not allowed to jump off)
+ALL_CATS::DB	00H	;FLAG set if all catwalks are claimed
+LIFT::	DB	00H	;FLAG to see if lift is enabled.
+CANNON::DB	00H	;FLAG set if cannon is enabled.
+FALL_FLAG::DB	00H	;FLAG to see if Bob is falling.
+DIECNT::DB	00H	;COUNTER for position within dying routine.
+BOOMBOB::DB	00H	;FLAG set if bob is being shot out of the cannon.
+HI_JMP::DB	MAXHEIGHT	;MAXIMUM amount of jump.
+PRICAN:	DB	00H	;FLAG to state how to display cannon and bob.
+FFLASH:	DB	00H	;TOGGLE used for face flashing when low on time.
+TSKCNT:	DB	00H	;COUNTER telling bob how many interrupt passed since
+			;last reset to slow down.
+BIZFLG::DB	00H
+BIZCNT::DB	00H
+SP0DIS::DB	00H	;SPRITE 0'S DISPLACEMENT. (variable)
+BOBSTB::
+BOBSYH::DB	00H
+BOBSXH::DB	00H
+BHATP::	DB	00H
+BHATC::	DB	00H
+;
+BOBSYF::DB	00H
+BOBSXF::DB	00H
+BOBFT::DB	00H
+BFEETC::DB	00H
+;
+BOBSYV::DB	00H
+BOBSXV::DB	00H
+BOBFACE::DB	00H
+BFACEC::DB	00H
+;
+BOBSYB::DB	00H
+BOBSXB::DB	00H
+BBODYP::DB	00H
+BBODYC::DB	00H
+;
+;
+;		ROUTINE NAME:	MBSPR
+;		FILE NAME:	BOB.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:		December 22, 1983
+;
+;	DESCRIPTION:
+;
+;		This routine will displace BOB an amount of pixels
+;		specified.
+;
+;	PARAMETERS PASSED:
+;
+;			C	- X DISPLACEMENT
+;			E	- Y DISPLACEMENT
+;				
+;				
+;	PARAMETERS RETURNED:
+;
+;			NONE
+;		
+;	GLOBALS ACESSED:
+;
+;			SPNAME	-	IOS SPRITE NAME
+;			SPMOVE  -	IOS SPRITE MOVE
+;
+;	COMMENTS AND WARNINGS:
+;
+;			NONE
+;
+
+MBSPR::
+	PUSH	BC
+	PUSH	DE
+	LD	A,C		;IF NO MOVEMENT WAS DONE THEN DON'T MOVE FEET
+	OR	E
+	JP	Z,DONTFT
+	;
+	IF8.	(BOB_STATUS),.NE.,TRANSPORTING
+	IF8.	(BOB_STATUS),.NE.,JUMPING
+	  IF8. (BOB_STATUS),.NE.,FALLING
+	    IF8. (BOB_STATUS),.NE.,SLIDING
+	      IF8. (ANIMFT),.LT.,2		;IS THE TOGGLE SET?
+	        ADD8. (BOBFT),4
+	      ENDIF.
+	      IF8. (ANIMFT),.EQ.,3
+	        IF8. (LADDER),.EQ.,FALSE
+	          ADD8. (BOBFT),8
+	        ENDIF.
+	      ENDIF.
+	      INC8. (ANIMFT)
+	        IF8. (ANIMFT),.EQ.,4
+                  ASIGN8. (ANIMFT),0
+	        ENDIF.
+	      ENDIF.
+	    ENDIF.
+	  ENDIF.
+	ENDIF.
+	;
+DONTFT:	POP	DE		;GET THE Y DISPLACEMENT
+	LD	A,(BOBY)	;GET BOB'S Y
+	ADD	A,E		;ADD EM
+	LD	(BOBY),A	;SAVE IT
+	;
+	POP	BC		;NOW GET THE X DISPLACEMENT
+	LD	A,(BOBX)	;GET BOB'S X
+	ADD	A,C		;ADD EM
+	LD	(BOBX),A	;SAVE IT
+	;
+	RET
+DISBOB::;PCALL	SPNAME,FEET,(BOBFT) ;RENAME THE FEET PATTERNS TO THE PROPER ONE
+	;
+	;THIS PART IS THE TASK THAT IS EXECUTED FIRST EVERY INTERRUPT SO THAT
+	;THE SPRITES DON'T SCREW UP.
+	;
+	;
+	LD	A,(INIT_SCR)	;IF END OF SCREEN OR GOING TO NEXT GUY IS
+	LD	BC,(NXT_GUY)	;TRUE, THEN BLANK ALL SPRITES
+	OR	C
+	LD	BC,(KEEPCLEAR)
+	OR	C
+	JR	Z,SKIPBL
+	;
+	PCALL	VRAMWR,VATRIAD,0D0H	;SET FIRST SPRITE Y TO BLANK ALL
+	ASIGN8.	(KEEPCLEAR),TRUE
+	RET
+	;
+SKIPBL:
+	LD	A,(BOBX)
+	LD	(BOBSXH),A
+	LD	(BOBSXF),A
+	LD	(BOBSXV),A
+	LD	(BOBSXB),A
+	;
+	IF8. (TIMOUT),.EQ.,TRUE
+	  LD	A,(RADIOACTIVE)
+	  AND	A
+	  JR	NZ,OUTTIM
+	  ;
+	  LD	A,(BOB_STATUS)
+	  CP	DEAD			;IS THE DYING ANIMATION RUNNING?
+	  JR	Z,OUTTIM
+	  LD	A,(FFLASH)
+	  XOR	1
+	  LD	(FFLASH),A
+	  JR	Z,FBLACK
+	  ;
+	  LD	A,LRED
+	  LD	(BFACEC),A
+	  JR	OUTTIM
+	  ;
+FBLACK:	  LD	A,BLACK
+	  LD	(BFACEC),A
+OUTTIM:	ENDIF.
+	LD	A,(BOBY)	;GET THE Y
+	LD	BC,(SP0DIS)
+	SUB	C		;SUBTRACT THE DISPLACEMENT FOR SPRITE 0
+	LD	(BOBSYF),A
+;	LD	E,A		;PUT THE NEW NUMBER IN E
+;	LD	HL,(BOBX)	;GET BOB'S X
+;	PCALL	SPMOVE,FEET	;ACTUALLY MOVE IT
+	;
+	LD	A,(BOBY)	;DO IT ALL AGAIN FOR EACH SPRITE
+	SUB	SP1DIS
+	LD	(BOBSYB),A
+;	LD	E,A
+;	LD	HL,(BOBX)
+;	PCALL	SPMOVE,BODY
+	;
+;	PCALL	SPNAME,FACE,(BOBFACE)
+	LD	A,(BOBY)
+	SUB	SP2DIS
+	LD	(BOBSYV),A
+	LD	A,(NEAR_TOP)
+	AND	A
+	JR	Z,DFACE
+	LD	A,(BOBSYV)
+	ADD	A,3
+	LD	(BOBSYV),A
+DFACE:;	LD	HL,(BOBX)
+	;PCALL	SPMOVE,FACE
+	;
+	LD	A,(BOBY)
+	SUB	SP3DIS
+	LD	(BOBSYH),A
+	LD	A,(NEAR_TOP)
+	AND	A
+	JR	Z,DHAT
+	LD	A,(BOBSYH)
+	ADD	A,3
+	LD	(BOBSYH),A
+DHAT:	;LD	HL,(BOBX)
+;	PCALL	SPMOVE,HAT
+	;
+	ASIGN8.	(PRICAN),FALSE
+	IF8.	(TONNAG),.GT.,0
+	  IF8.	(BOBY),.LT.,189-MAXHEIGHT
+	    ASIGN8. (PRICAN),TRUE
+	  ENDIF.
+	ENDIF.
+	IF8. (PRICAN),.EQ.,TRUE
+	  PCALL FASTL8,16,CANSP,VATRIAD
+	  PCALL FASTL8,16,BOBSTB,VATRIAD+10*4
+	ELSE.
+	  IF8. (CANY),.NE.,0
+	    PCALL FASTL8,16,CANSP,VATRIAD+10*4
+	  ENDIF.
+	  PCALL FASTL8,16,BOBSTB,VATRIAD
+	ENDIF.
+	;
+	RET			;GO BACK
+;
+;		ROUTINE NAME:	BOB_CONTROL
+;		FILE NAME:	BOB.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:		December 23, 1983
+;
+;	DESCRIPTION:
+;
+;		This routine will do all of the controlling for
+;	Bounty Bob.  It will read the joystick, and move Bob accordingly
+;	It is run as a task from the main module.	
+;
+;	PARAMETERS PASSED:
+;
+;		NONE
+;				
+;	PARAMETERS RETURNED:
+;
+;		NONE
+;
+;	GLOBALS ACESSED:
+;
+;	COMMENTS AND WARNINGS:
+;
+;	This must be run at all times except when constructing the screen.
+;	and overhead + standard shit.
+;
+;
+BOB_CONTROL::
+;
+;
+	IF8. (TRTIMR),.GT.,0
+	  DEC8. (TRTIMR)
+	  AND	A
+	  JR	NZ,TRRCN1
+	    ASIGN8. (TRRCOL),2
+TRRCN1:	 ENDIF.
+	INC8.   (TSKCNT)		
+	IF8. 	(TSKCNT),.EQ.,5		;IF ON THE 5TH INTERRUPT, DON'T
+	  ASIGN8. (TSKCNT),0		;EXECUTE BOB.  THIS WILL SLOW HIM
+	  RET				;DOWN 4:5
+	ENDIF.
+	ASIGN8.	(SWALK),FALSE		;CLEAR THE WALKING FLAG SOUND
+					;SET LATER BY MBSPR
+	CALL	RSTCAN				;IF THE CANNON IS NOT BEING
+						;USED, RESET IT TO THE ORIGINAL
+						;POSITION
+	IF8. (BOB_STATUS),.EQ.,DEAD		
+	  IF8. (RADIOACTIVE),.EQ.,TRUE
+	    CALL RACTIVE
+	  ENDIF.
+	  PCALL FAKEMOVE,0FEH,(BOBX)
+	  JP DIE_BOB
+	ENDIF.
+	CALL	CHKBOB
+	IF8.	(LIFT),.EQ.,TRUE	;MAKE SURE THE LIFT SOUNDS ARE ALRIGHT.
+	  ASIGN8. (SPLAT),128
+	ELSE.
+	  ASIGN8. (SPLAT),0
+	ENDIF.
+	;
+	IF8.	(RADIOACTIVE),.EQ.,TRUE  ;IS HE ALREADY HALF DEAD?
+	  CALL	RACTIVE		;CHANGE THE COLOR
+	  IF8.	(CATWALK),.EQ.,TRUE
+	    ASIGN8. (BOB_STATUS),DEAD
+	    ASIGN8. (DIECNT),76
+	    ASIGN8. (SDIE),TRUE
+	    JP	DIE_BOB
+	  ELSE.
+	    IF8. (ON_LADDER),.EQ.,TRUE
+	      ASIGN8. (BOB_STATUS),FALLING
+	    ENDIF.
+	  ENDIF.
+	ENDIF.
+	IF8.	(BOB_STATUS),.EQ.,FALLING
+	  JP FALL_DOWN
+	ELSE.
+	  IF8.	(BOB_STATUS),.EQ.,JUMPING
+	    JP JUMP
+	  ELSE.
+	    IF8. (BOB_STATUS),.EQ.,SLIDING
+	      JP SLIDE
+	    ELSE.
+	      IF8. (BOB_STATUS),.EQ.,TRANSPORTING
+	        JP BEAM
+	      ELSE.
+;
+
+	;
+	IF8. (CATWALK),.EQ.,FALSE	;IF THERE IS NOTHING HOLDING BOB UP-
+	  IF8. (ON_LADDER),.EQ.,FALSE
+	    ASIGN8. (BOB_STATUS),FALLING  ;MAKE 'IM FALL
+	    JP INIT_FALL
+	  ENDIF.
+	ENDIF.
+	;
+;	HERE I CHECK TO SEE HOW BOB IS GOING TO JUMP
+;
+	IF8.	(ON_LADDER),.EQ.,FALSE
+	IF8.	(FIRE_BUTTON),.EQ.,TRUE
+	ASIGN8. (FIRE_BUTTON),FALSE
+	IF8.	(CANNON),.EQ.,TRUE
+	  ASIGN8. (BOOMBOB),TRUE
+	  ASIGN8. (SCANN),BOOMCANNON	;SET FIRING CANNON SOUND
+	  CALL MAXCHK			;SET THE MAXIMUM HEIGHT
+	  ASIGN8. (TONNAG),FALSE
+	  ASIGN8. (TONFLG),TRUE
+	  JP BUPSET
+	ELSE.
+	  IF8. (LIFT),.EQ.,TRUE
+	    ASIGN8. (LIFT),FALSE
+	  ELSE.
+	  IF8.	(JOY_LEFT),.EQ.,TRUE
+	    ASIGN8. (JMPDIR),LEFT
+	  ELSE.
+	    IF8. (JOY_RIGHT),.EQ.,TRUE
+	      ASIGN8. (JMPDIR),RGHT
+	    ELSE.
+BUPSET:	      ASIGN8. (JMPDIR),UPJUMP
+	    ENDIF.
+	  ENDIF.
+	  ASIGN8. (JMPCNT),0H		;SET THE JUMP COUNTER TO ZERO
+	  ASIGN8. (UPGOING),TRUE	;YES, WE ARE ON THE WAY UP
+	  ASIGN8. (BOB_STATUS),JUMPING
+	  JP	JUMP
+	ENDIF.
+	ENDIF.
+	ENDIF.
+	ENDIF.
+;
+;	NEXT WE SEE IF THERE IS A LIFT TO USE, AND IF SO, USE THE
+;	JOYSTICK TO MOVE IT, OTHERWISE MOVE BOB NORMALLY
+;
+	IF8.	(JOY_UP),.EQ.,TRUE
+	  IF8. (LIFT),.EQ.,TRUE
+	    ASIGN8. (SPLAT),32
+	    PCALL MOVELIFT,UPLIFT
+	    RET
+	  ELSE.
+	    IF8. (LADDER),.EQ.,TRUE
+	      JP UP_LADDER
+	    ENDIF.
+	  ENDIF.
+	ENDIF.
+;
+	IF8. (JOY_DOWN),.EQ.,TRUE
+	  IF8. (LIFT),.EQ.,TRUE
+	    ASIGN8. (SPLAT),64
+	    PCALL MOVELIFT,DNLIFT
+	    RET
+    	  ELSE.
+	    IF8. (LADDER),.EQ.,TRUE
+	      JP DN_LADDER
+	     ENDIF.
+	  ENDIF.
+	ENDIF.
+TRYHORIZ:
+;
+	IF8. (ON_LADDER),.EQ.,FALSE	;NOT ON THE LADDER?
+	  IF8. (JOY_LEFT),.EQ.,TRUE	;JOYSTICK POINTED LEFT?
+	    IF8. (CANNON),.EQ.,TRUE	;IF WE'RE ON THE CANNON
+	      PCALL MOVECAN,LTCAN	;THEN MOVE THE CANNON LEFT
+	      RET
+	    ENDIF.			;OTHERWISE....
+	    IF8. (LIFT),.EQ.,TRUE	;ARE WE ON THE LIFT?
+	      ASIGN8. (SPLAT),16
+	      PCALL MOVELIFT,LTLIFT	;THEN MOVE THE LIFT
+	      RET			;GET LOST
+	    ELSE.			;OTHERWISE....
+	      JP MOVELT			;BLANDLY MOVE BOB LEFT
+	    ENDIF.
+	  ENDIF.
+;
+	  IF8. (JOY_RIGHT),.EQ.,TRUE	;JOYSTICK POINTED RIGHT?
+	    IF8. (CANNON),.EQ.,TRUE	;ARE WE IN THE CANNON?
+	      PCALL MOVECAN,RTCAN	;THEN MOVE THE CANNON RIGHT.
+	      RET
+	    ENDIF.
+	    ;
+	    IF8. (LIFT),.EQ.,TRUE	;OTHERWISE...ARE WE ON THE LIFT?
+	      ASIGN8. (SPLAT),16
+	      PCALL MOVELIFT,RTLIFT	;THEN MOVE IT RIGHT.
+	      RET
+	    ELSE.
+	      JP MOVERT			;OTHERWISE...JUST MOVE BOB RIGHT.
+	    ENDIF.
+	  ENDIF.
+	ENDIF.
+	ENDIF.
+	ENDIF.
+	ENDIF.
+	ENDIF.
+	RET
+;
+;	THIS ROUTINE WILL MOVE BOB UP A LADDER, AND IF HE IS NEAR THE TOP,
+;	WILL MAKE HIM SMALLER, IF HE IS AT THE TOP HE WILL BECOME NORMAL.
+;
+UP_LADDER::
+	ASIGN8. (BOBFT),NOFEET
+	ASIGN8. (BOBFACE),NOFACE
+	  IF8. (AT_TOP),.EQ.,TRUE
+	    ASIGN8. (SP0DIS),ORGSP0
+	    ASIGN8. (BOBFACE),FACERT
+	    ASIGN8. (BOBFT),FEETRT
+	    PCALL   MBSPR NONE,NONE		;JUST UPDATE THE SPRITES
+	    JP	TRYHORIZ
+	  ELSE.
+	    PCALL MBSPR,NONE,UP
+	  ENDIF.
+	RET
+;
+;	THIS ROUTINE WILL MOVE BOB DOWN A LADDER, IF HE IS NEAR THE TOP
+;	THEN MAKE HIM SMALLER.
+;
+DN_LADDER::
+	IF8.	(AT_BOT),.EQ.,FALSE
+	  ASIGN8. (BOBFACE),NOFACE
+	  ASIGN8. (BOBFT),NOFEET
+	  PCALL	MBSPR,NONE,DOWN
+	ELSE.
+	  ASIGN8. (BOBFACE),FACERT
+	  ASIGN8. (BOBFT),FEETRT
+	  PCALL	MBSPR,NONE,NONE
+	  JP TRYHORIZ
+	ENDIF.
+	RET
+;
+;	THIS ROUTINE WILL MOVE BOB LEFT, IF THE CATWALK IS DOWN ONE PIXEL,
+;	IT WILL ALSO MOVE HIM DOWN
+;
+MOVELT::
+	ASIGN8. (BOBFT),FEETLT
+	ASIGN8. (BOBFACE),FACELT
+	IF8. (LT_CAN_GO),.EQ.,TRUE
+	  IF8. (CATWALK),.EQ.,TRUE
+	    ASIGN8. (SWALK),1
+	    PCALL MBSPR,LEFT,NONE
+	  ELSE.
+	    JP INIT_FALL
+	  ENDIF.
+	ENDIF.
+	RET
+;
+;	THIS ROUTINE WILL MOVE BOB RIGHT, WITH THE SAME CONSTRAINTS AS
+;	IF HE WAS MOVING LEFT
+;
+MOVERT::
+	ASIGN8.	(BOBFT),FEETRT
+	ASIGN8. (BOBFACE),FACERT
+	IF8. (RT_CAN_GO),.EQ.,TRUE
+	  IF8. (CATWALK),.EQ.,TRUE
+	    ASIGN8. (SWALK),1
+	    PCALL MBSPR,RGHT,NONE
+	  ELSE.
+	    JP INIT_FALL
+	  ENDIF.
+	ENDIF.
+	RET
+;
+;
+;	THIS ROUTINE WILL INITIALIZE A FALL. (SET THE COUNTER)
+;
+INIT_FALL::
+	XOR	A			;CLEAR A
+	LD	(FALCNT),A	;CLEAR THE FALL COUNTER
+	ASIGN8.	(BOB_STATUS),FALLING	;SET HIS STATUS
+	ASIGN8. (SJUMP),4	;SET THE FALLING FLAG
+	JP	TFALL
+;
+;	THIS ROUTINE WILL INCREMENT THE FALL COUNTER, AND MOVE BOB DOWN IN
+;	SUCH A WAY THAT IF HE FALLS PAST HIS FALL LIMIT, HE'LL DIE WHEN HE
+;	HITS THE NEXT SOLID PIECE.
+;
+FALL_DOWN::
+	IF8. (CATWALK),.EQ.,TRUE
+	  ASIGN8. (SJUMP),0	;TURN THE JUMPING OR FALLING SOUND OFF
+	  ASIGN8. (HI_JMP),MAXHEIGHT
+	  IF8. (RADIOACTIVE),.EQ.,TRUE
+	     JR DODEAD
+	  ENDIF.
+	  IF8. (FALCNT),.GT.,FALL_LIMIT
+DODEAD:	    ASIGN8. (DIECNT),76
+	    ASIGN8. (BOB_STATUS),DEAD
+	    ASIGN8. (SDIE),TRUE		;SET THE DYING SOUND
+	    JP DIE_BOB
+	  ELSE.
+	    ASIGN8. (BOOMBOB),FALSE
+	    ASIGN8. (FALL_FLAG),TRUE
+	    ASIGN8. (BOB_STATUS),OK
+	    LD A,(BOBFACE)		;IF EITHER FROWNING OR SMILING,
+	    CP FACERT			;FACING RIGHT, THEN SET FEET RIGHT
+	    JR Z,STRTF			;(AND FACE SMILING)
+	    CP RTJPFC
+	    JR Z,STRTF
+	    ASIGN8. (BOBFT),FEETLT
+	    ASIGN8. (BOBFACE),FACELT
+	    JR FTALOOP
+STRTF:	    ASIGN8. (BOBFT),FEETRT
+	    ASIGN8. (BOBFACE),FACERT
+FTALOOP:
+	  ENDIF.
+	ELSE.
+TFALL:	  PCALL MBSPR,NONE,DOWN
+	  INC8. (FALCNT)
+	ENDIF.
+	RET
+;
+;	THIS ROUTINE WILL ALLOW BOB TO JUMP UP INTO THE AIR, AND BACK
+;	DOWN AGAIN.
+;
+JUMP::
+	; ....SO GO AHEAD, JUMP.....VAN HALEN 1984
+	IF8. (JMPDIR),.EQ.,JLEFT	;MAKE SURE BOB CAN'T JUMP PAST THE
+	  IF8. (LT_CAN_GO),.EQ.,FALSE	;SIDE LIMITS....
+	    ASIGN8. (JMPDIR),UPJUMP	;LEFT
+	  ENDIF.
+	ELSE.
+	  IF8. (RT_CAN_GO),.EQ.,FALSE	;RIGHT
+	    ASIGN8. (JMPDIR),UPJUMP
+	  ENDIF.
+	ENDIF.
+	;
+	IF8. (UPGOING),.EQ.,TRUE	;ON THE RISE?
+  	  IF8. (BOOMBOB),.EQ.,FALSE
+	    IF8. (SJUMP),.NE.,8		
+	      ASIGN8. (SJUMP),1		;SET THE UP SOUND
+	    ENDIF.
+	  ENDIF.
+	  ;
+	  IF8. (JMPDIR),.EQ.,JLEFT	;GOING LEFT?
+	    PCALL MBSPR,LEFT,UP		;THEN SEND HIM UP AND LEFT
+	    ASIGN8. (BOBFT),LTJPFT	;MAKE SURE HIS FEET POINT LEFT
+	    ASIGN8. (BOBFACE),LTJPFC	;AND A FROWN ON HIS FACE
+	  ELSE.	
+	    IF8. (JMPDIR),.EQ.,JRIGHT	;GOING RIGHT?
+	      ASIGN8. (BOBFT),RTJPFT	;MAKE SURE FEET POINT RIGHT
+	      ASIGN8. (BOBFACE),RTJPFC	;AND A FROWN ON HIS FACE
+	      PCALL MBSPR,RGHT,UP	;SEND HIM RIGHT AND UP
+	    ELSE.
+	      LD A,(BOBFACE)		;IF EITHER FROWNING OR SMILING,
+	      CP FACERT			;FACING RIGHT, THEN SET FEET RIGHT
+	      JR Z,SETRTF		;(AND FACE FROWNING)
+	      CP RTJPFC
+	      JR Z,SETRTF
+	      ASIGN8. (BOBFT),LTJPFT
+	      ASIGN8. (BOBFACE),LTJPFC
+	      JR FTBLOOP
+SETRTF:	      ASIGN8. (BOBFT),RTJPFT
+	      ASIGN8. (BOBFACE),RTJPFC
+FTBLOOP:
+	      PCALL MBSPR,NONE,UP	;AND SEND HIM STRAIGHT UP
+	    ENDIF.
+	  ENDIF.
+	  INC8. (JMPCNT)		;INCREMENT THE JUMPING COUNTER
+	  IF8. (BOOMBOB),.EQ.,TRUE	;IF GETTING SHOT OUT OF THE CANNON,
+	    PCALL MBSPR,NONE,UP		;GOTTA MOVE TWICE AS FAST...
+	    INC8. (JMPCNT)
+	  ENDIF.
+	ELSE.
+	;
+	  IF8. (JMPDIR),.EQ.,LEFT
+	    PCALL MBSPR,LEFT,NONE
+	  ELSE.
+	    IF8. (JMPDIR),.EQ.,RGHT
+	      PCALL MBSPR,RGHT,NONE
+	    ENDIF.
+	  ENDIF.
+	  CALL FALL_DOWN
+	ENDIF.
+	;
+	IF8.	(NO_UP),.EQ.,TRUE 	;IF BOB IS BUMPING HIS HEAD, PUSH
+	  JR	DODWN			;HIM DOWN
+	ENDIF.
+	;
+	IF8. (JMPCNT),.GE.,(HI_JMP)	;IF JUMPED TOO HIGH, THEN TIME TO FALL
+DODWN:	  ASIGN8. (UPGOING),FALSE
+	  LD	(FALCNT),A
+	  LD	(JMPCNT),A
+	  ASIGN8. (SJUMP),2
+	  IF8. (BOBX),.EQ.,0EEH
+	  IF8. (BOBY),.LE.,21H
+	    INC8. (BIZCNT)
+	    IF8. (BIZCNT),.GT.,8
+	      ASIGN8. (BIZFLG),TRUE
+	    ENDIF.
+	  ENDIF.
+	  ENDIF.
+	  IF8. (HI_JMP),.GE.,0A0H	;DID HE GO OFF THE SCREEN?
+	    ASIGN8. (BOBFACE),FLIPBD	;YES....THEN ASIGN BOB THE UPSIDE-DOWN
+	    ASIGN8. (BOBFT),FLIPHT	;PATTERNS
+	    ASIGN8. (BBODYP),FLIPFC
+	    ASIGN8. (BHATP),FLIPFT
+	    ASIGN8. (BFACEC),DBLUE
+	    ASIGN8. (BFEETC),DGREEN
+	    ASIGN8. (BHATC),WHITE
+	    ASIGN8. (BBODYC),LRED
+	    ASIGN8. (FALCNT),37
+	    ASIGN8. (SJUMP),4
+	  ENDIF.
+	ENDIF.
+	;
+	RET
+;
+;	THIS ROUTINE WILL DO THE ANIMATION OF BOB DYING
+;	
+DIE_BOB::
+	ASIGN8. (BFEETC),CLEAR
+	IF8. (DIECNT),.LE.,73
+	  ASIGN8. (BBODYC),CLEAR
+	ENDIF.
+	IF8. (DIECNT),.LE.,67
+	  ASIGN8. (BFACEC),CLEAR
+	ENDIF.
+	IF8. (DIECNT),.GE.,59
+	  PCALL	MBSPR,0,1
+	ENDIF.
+JUSTDEC:
+	DEC8.	(DIECNT)
+	RET	NZ
+	ASIGN8. (NXT_GUY),1
+	XOR	A		;CLEAR ALL SOUND FLAGS
+	LD	(SJUMP),A
+	LD	(SWALK),A
+	LD	(SRACTIVE),A
+	LD	(SBEAM),A
+	N.CLKRV	BOBTCB
+	RET
+	;	
+RACTIVE:
+	; THIS ROUTINE WILL MAKE BOB'S COLOR'S FLASH (RADIOACTIVE)
+	; SET THE RADIOACTIVE SOUND
+	;
+	ASIGN8.	(SRACTIVE),TRUE		;MAKE THE RADIOACTIVE SOUND GO
+	LD	A,(BHATC)
+	CP	0FH
+	JP	NZ,DOCOLRS
+	;
+	LD	A,CLEAR		;START THE PROCESS OVER
+DOCOLRS:
+	INC	A
+	LD	(BHATC),A
+	INC	A
+	LD	(BFEETC),A
+	INC	A
+	LD	(BFACEC),A
+	INC	A
+	LD	(BBODYC),A
+	RET
+	;
+INIT_BOB::
+	; This routine will initialize Bob's sprites
+	ASIGN8.	(SP0DIS),ORGSP0
+	ASIGN8.	(BHATP),HATPAT
+	ASIGN8.	(BOBFACE),FACERT
+	ASIGN8.	(BBODYP),BODPAT
+	ASIGN8. (BHATC),DGREEN
+	ASIGN8. (BFACEC),LRED
+	ASIGN8.	(BBODYC),DBLUE
+	ASIGN8.	(BFEETC),WHITE
+	ASIGN8.	(BOBFT),FEETRT
+	ASIGN8.	(RADIOACTIVE),FALSE
+	LD	(UPGOING),A
+	ASIGN8.	(BOB_STATUS),OK
+	RET
+MAXCHK:
+	;THIS ROUTINE WILL SET THE MAXIMUM HEIGHT OF A FIRE FROM THE CANNON
+	LD	A,(TONNAG)	;GET THE CURRENT AMOUNT (PROVIDED BY JOAQUIN)
+	CP	1		;FIRST LEVEL AMOUNT
+	JR	Z,SET1LAND
+	CP	2		;SECOND LEVEL AMOUNT
+	JR	Z,SET2LAND
+	CP	3		;THIRD LEVEL AMOUNT
+	JR	Z,SET3LAND
+	;
+	;	OTHERWISE WE HAVE A LARGE BOOMING AMOUNT
+	;
+	ASIGN8. (HI_JMP),0AAH
+	RET
+SET1LAND:
+	ASIGN8.	(HI_JMP),3BH
+	RET
+SET2LAND:
+	ASIGN8. (HI_JMP),6BH
+	RET
+SET3LAND:
+	ASIGN8. (HI_JMP),8BH
+	RET
+	END
+	

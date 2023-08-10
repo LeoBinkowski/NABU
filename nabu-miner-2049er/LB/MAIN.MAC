@@ -1,0 +1,128 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        MAIN.MAC                                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  Miner 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      THIS FILE IS THE FIRST TO BE EXECUTED, AND CONTROLS      *
+;*      HELP, RESTART                                            *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski, C. Chow                          *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 		 .Z80
+;
+;	THIS MODULE IS THE OUTER SHELL FOR NEW GAMES
+;
+ 		.RADIX 10
+ 		CSEG
+		INCLUDE COMMON.MRO
+		EXTRN	SETUP,OPEN,ENDSCR,MOPENGRAPHICS,VRAMWR,CLEMEN,CLEFLG
+		EXTRN	POSTOP,MSTART,PUTNG_,VSETG2,VBLKOF,VSETG1,VREGWR,VBLKON
+;PFLAG::		DB	0	;1 = GAME IN PLAY, 0 = STOPPED
+;RFLAG::		DB	0	;1 = WANT TO RESTART GAME, 0 = NORMAL DURING PLAY
+HFLAG::		DB	0	;1 = HELP WANTED 0 = NORMAL DURING PLAY
+
+					
+
+SHELL::
+;	
+		CALL	SETUP
+		SETCOLR	BLACK,BLACK
+		CALL	VBLKON
+		LD	BC,0
+		PUSH	BC
+		PUSH	BC
+		LD	BC,MOPENGRAPHICS	;PUT UP THE NED SCREEN
+		PUSH	BC
+		CALL	PUTNG_
+		POP	BC
+		POP	BC
+		POP	BC
+;
+;	THIS PART WILL SET UP THE NAME TABLE 0-255, 0-255, 0-255
+;
+	LD	BC,1800H
+	LD	DE,0
+BACK:	PUSH	BC
+	PUSH	DE
+	CALL	VRAMWR
+	POP	DE	
+	POP	BC
+	INC	BC
+	INC	E
+	LD	HL,1800H+300H
+	SBC	HL,BC
+	JR	NZ,BACK
+		CALL	VBLKOF
+	XOR	A
+	LD	(CLEFLG),A
+	CALL	CLEMEN
+OPENLOOP:
+		N.DEVRDY KEYBOARD,KEYSTROKE
+		AND	A
+		JR	Z,JOYLOOK
+		N.DEVIO	KEYBOARD,KEYSTROKE
+		CP	0DH		;IS IT A GO KEY?
+		JR	Z,GOGAME
+JOYLOOK:	N.DEVRDY KEYBOARD,JSTCK1
+		AND	A
+		JR	Z,WTEXIT
+		N.DEVIO	KEYBOARD,JSTCK1
+		BIT	4,A
+		JR	NZ,GOGAME
+WTEXIT:		
+		LD	A,(CLEFLG)
+		CP	2
+		JR	NZ,OPENLOOP
+GOGAME:		
+		LD	A,2
+		LD	(CLEFLG),A
+		CALL	VSETG1		;SET UP VIDEO ROUTINES
+		JR	START		;SKIP AROUND SETTING HELP FLAG AND REMOVING TASKS
+HELP::		LD	A,1
+		LD	(HFLAG),A	;SET HELP FLAG
+RESTART::	N.CLKRV	0		;REMOVE ALL TASKS
+START:	;	LD	SP,(6)		;RESET STACK
+		CALL	OPEN		;PUT ON OPENING SCREEN & OPTIONS
+		XOR	A
+		LD	(HFLAG),A
+;SAMEOP:	;	CALL	GINIT		;LOAD GAME GRAPHIC TABLES ETC
+;		CALL	INIT		;INTIALIZE GAME VARIABLES
+;		CALL	GTASK		;SET UP ALL TASKS
+;LOOP:		LD	A,(PFLAG)	;CHECK END OF PLAY FLAG
+;		AND	A
+;		JR	Z,REMOVT
+;		LD	A,(RFLAG)	;CHECK RESTART FLAG
+;		AND 	A
+;		JR	NZ,RESTART
+;		LD	A,(HFLAG)	;CHECK HELP FLAG
+;		AND 	A
+;		JR	NZ,HELP
+;		JR	LOOP		;END OF CHECKS
+		JP	MSTART
+REMOVT::	N.CLKRV	0		;REMOVE TASKS AT END OF PLAY
+		CALL	ENDSCR		;CALL THE END SCREEN
+		JP	POSTOP	;JUMP TO START OF NEW GAME
+
+		END
+

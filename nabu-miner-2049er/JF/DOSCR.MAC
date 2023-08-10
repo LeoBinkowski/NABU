@@ -1,0 +1,915 @@
+
+;************************************************************************
+;	DOSCR.MAC - ROUTINE TO PUT UP SCREENS FROM SCREEN TABLES
+;	08JUN84 JF	CHECK FOR REDX FLAG
+;	08MAY84 JF	MOVED LADDER TABLE LEFT 1 PIX
+;	04MAY84 JF	PUT IN DILIFT
+;			MOVED TNT CHARGE 2 PIX'S
+;	03MAY84 JF	FIX LADDER ENTRIES (X-COORD)
+;			NEW TRR ENTRIES
+;			PUT IN CANNON/LIFT COORDS
+;	02MAY84	JF	COPIED PAT'S STUFF ADN ADDED A BIT MORE
+;************************************************************************
+
+	.Z80	
+	.RADIX	10
+
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	LINKTAB.EXA
+	INCLUDE	CLKAT.MRO
+	INCLUDE ARITH.MRO
+	.LIST
+
+
+
+
+;************************************************************
+;	MACRO TO MOVE GIVEN BUFFER
+;************************************************************
+
+	COPBUF	MACRO	FRADD,TOADD,TOTBTS
+
+	LD DE,TOADD
+	LD HL,FRADD
+	LD BC,TOTBTS
+	LDIR
+	ENDM
+
+;
+;****************************************************************************
+;		EXTERNAL SUBROUTINE NAMES
+;****************************************************************************
+ 
+	EXTRN	LNKTB,DOPIC,ORFLAG,OVFLAG
+	EXTRN	ADDENT,INICAT,FINCAT,SETD6,CKCAT
+	EXTRN	ADDTAB,LASLAD,LASSLI,LASTRR,LASTSE
+	EXTRN	LADTAB,SLITAB,TRRTAB,TSETAB
+	EXTRN	ADDMPL,LASMPL,ADDWAL,LASWAL
+	EXTRN	ADDTSE,ADDMON,LASMON,MONTAB,PUTMON
+	EXTRN	NIXMON,SPTNUM,MONTSK,MONTCB
+	EXTRN   VALTAB,ADSCOR,COPSCO,SCOCOP,INISCO,SBUF1,SBUF2
+	EXTRN	FIRST,PREPLA,PLANUM,LEV1,LEV2,ZONE1,ZONE2
+	EXTRN	SCOFLG,SCOTSK,SCOTCB
+	EXTRN	PLAY1,PLAY2,BOBX,BOBY,CATCNT
+	EXTRN	TIMER,TIMTSK,TIMTCB,DISTIM,TIMBON,TIMFLG
+	EXTRN	CCATX,CCATY,CLAFLG
+	EXTRN	ZOTFLG,TSEFLG,ZOVAFG,BLKSCO
+	EXTRN 	XMANFG,XMATCB,XMATSK
+	EXTRN	MARFLG,WASFLG,RADMAR,RADWAS,MARTSK
+	EXTRN	PUTWAS,PLUFLG
+	EXTRN	JFX,JFY,REDX
+
+
+;***************************************************************************
+;		EXTERNAL DATA NAMES - PATTERNS
+;***************************************************************************
+
+	EXTRN	CATL,CATR,CATP,LADL,LADR,SLID,SLIR,SLIL,AX
+	EXTRN	PLAT,CUP,CANT,SHOV,TR2,JUG,OLAM,PLI,PIC
+	EXTRN	CAN,BUR,FUN,TRR,TONE,TTWO,TTRE,TFOR,DET,ANV
+	EXTRN	JACK,GOG,IRON,CAKE,FLO,JOY,DOL,WAT,CAND,HAM
+	EXTRN	BF,KEG1,KEG2,KEG3,MAR,JBTNT,JRTNT,JCHARG,TONS,WALL,ROOF
+	EXTRN	BLK,TRK,TRKE
+	EXTRN	CANX,CANY,LIFTX,LIFTY,DILIFT
+
+;
+;**************************************************************************
+;		TABLE BUFFER AREAS
+;**************************************************************************
+
+	;************* TABLE WORK DATA NAMES 8********************
+
+	ENTRY:		DW	0	;ENTRY POINTER
+	ENTLEN:		DW	0	;LENGTH OF TABLE ENTRY
+	BEGBUF:		DW	0	;MARK BEGINNING OF BUFFER TO COPY
+	ENTTYP:	DB	0	;TABLE ENTRY TYPE
+	DX:		DB	0	;WORK X COORDINATE
+	DY:		DB	0	;WORK Y COORDINATE								
+	I:		DB	0	;WORK COUNTER
+	SCASE:		DB	0	;SPECIAL CASE INDICATOR (FOR CATWALKS)
+
+	SUBTAB:		DW	DOEND,DOCAT,DOLAD	;SUBROUTINE JUMP TABLE
+			DW	DOSLD,DOSLD,DOSLD,DORMP
+			DW	DOTSE,DOMON,DOCHOP,DOTRR
+			DW	DOMPT,DOPLT,DOTRK,DOWAL
+			DW	DOWAL,DOEFF,DOCHG,DOBOB
+
+
+	;*************** CATWALK BUFFER **************************
+
+	CATBUF:	
+          CX:		DB	0		;X COORDINATE
+	  CY:		DB	0		;Y COORDINATE
+	  CJ:		DB	0		;NO OF CATWALKS
+	  CEXP:		DB	0		;EXTRA PIECE
+
+	;*************** LADDER BUFFER **************************
+
+	LADBUF:	
+          LX:		DB	0		;X COORDINATE
+	  LY:		DB	0		;Y COORDINATE
+	  LJ:		DB	0		;NO OF RUNGS
+	  LADJ:		DB	0		;PIXEL ADJUSTMENT
+	  LBY:		DB	0		;BOTTOM Y
+
+	;*************** SLIDE BUFFER **************************
+
+	SLIBUF:	
+          SX:		DB	0		;X COORDINATE
+	  SY:		DB	0		;Y COORDINATE
+	  SJ:		DB	0		;NO OF SECTIONS
+	  SBX:		DB	0		;BOTTOM X
+	  SBY:		DB	0		;BOTTOM Y
+
+	;*************** RAMP BUFFER **************************
+
+	RMPBUF:	
+          RX:		DB	0		;X COORDINATE
+	  RY:		DB	0		;Y COORDINATE
+	  RJ:		DB	0		;NO OF SECTIONS
+	  RPK:		DB	0		;RAMP DIRECTION
+
+	;*************** TREASURE BUFFER **************************
+
+	TSEBUF:	
+          TSX:		DB	0		;X COORDINATE
+	  TSY:		DB	0		;Y COORDINATE
+	  TSADD:	DW	0		;PATTERN ADDRESS
+	  TSEXD:	DB	0		;ERASE X DIMENSION
+	  TSEYD:	DB	0		;ERASE Y DIMENSION
+	  TSTX:		DB	0		;TOP X
+	  TSTY:		DB	0		;TOP Y
+	  TSBX:		DB	0		;BOTTOM X
+	  TSBY:		DB	0		;BOTTOM Y
+	  TSVAL:	DB	0		;TREASURE VALUE
+
+	;***************** CHOP BUFFER *****************************
+
+	CHPBUF:
+	  CHX:		DB	0		;X COORDINATE
+	  CHY:		DB	0		;Y COORDINATE
+
+	;***************** TRANSPORTER BUFFER ***********************
+
+	TRRBUF:
+	  TRX:		DB	0		;X COORDINATE
+	  TRY:		DB	0		;Y COORDINATE
+	  TRNUM:	DB	0		;TRANSPORTER #
+
+	;***************** PLATFORM BUFFER *****************************
+
+	PLTBUF:
+	  PLX:		DB	0		;X COORDINATE
+	  PLY:		DB	0		;Y COORDINATE
+	  PLJ:		DB	0		;NO OF SECTIONS
+
+	;***************** MONSTER BUFFER ***********************
+
+	MONBUF:
+	  MY:		DB	0		;Y COORDINATE
+	  MLX:		DB	0		;LEFT X
+	  MRX:		DB	0		;RIGHT X
+	  MPX:		DB	0		;PRESENT X
+	  MDIR:		DB	0		;MONSTER DIRECTION
+	  MINT:		DB	0		;SPEED INTERVAL
+
+	;**************** MOVING PLATFORM BUFFER ******************
+
+	MPLBUF:
+	  MPLLX:	DB	0		;LEFT X
+	  MPLRX:	DB	0		;RIGHT X
+	  MPLPX:	DB	0		;PRESENT X
+	  MPLPY:	DB	0		;PRESENT Y
+	  MPLPAT:	DB	0		;PATTERN SIZE
+	  MPLINT:	DB	0		;PLATFORM SPEED
+	  MPLDIR:	DB	0		;INITIAL DIRECTION
+
+	;***************** TRACK BUFFER *****************************
+
+	TRKBUF:
+	  TKX:		DB	0		;X COORDINATE
+	  TKY:		DB	0		;Y COORDINATE
+	  TKJ:		DB	0		;NO OF SECTIONS
+
+	;************** SPECIAL EFFECTS BUFFER **********************
+
+	EFFBUF:
+	  EFFCDE:	DB	0		;SPECIAL EFFECTS CODE
+
+	;**************** WALL / ROOF BUFFER *************************
+
+	WLLBUF:
+	  WTX:		DB	0		;TOP X
+	  WTY:		DB	0		;TOP Y
+	  WBX:		DB	0		;BOTTOM X
+	  WBY:		DB	0		;BOTTOM Y
+	  WJ:		DB	0		;NO OF SECTIONS
+	  WTBLI:	DB	0		;TBL ENTRY INDICATOR
+	
+	;***************** BOUNTY BOB BUFFER **************************
+
+	BOBBUF:
+	  BBX:		DB	0		;BOB COORDINATE X
+	  BBY:		DB	0		;BOB COORDINATE Y
+	  BBCAT:	DB	0		;NO OF CATWALKS
+	  BBTIME:	DB	0		;TIME
+;
+;**************************************************************************
+;		MAINLINE OF DOSCR.MAC 
+;**************************************************************************
+
+DOSCR::
+	LD (ENTRY),HL		;PASSED FROM PUTSCR
+	CALL INICAT		;INITIALIZE CATWALK TABLE POINTERS
+ENTLOO:
+	IF8. (REDX),.NE.,0	;WE HAVE TO EXIT REDOUT BECAUSE OF
+	    JP XDOSCR		;  HELP OR RESTART
+	ENDIF.
+	LD HL,(ENTRY)		;LOAD ADDRESS OF CURRENT TABLE ENTRY 
+	INC HL			;MOVE UP ONE BYTE
+	LD (BEGBUF),HL		;MOVE STARTING ADDRESS REQUIRED FOR BUFFER COPY
+
+	LD HL,(ENTRY)		;ADDRESS OF CURRENT ENTRY
+	LD A,(HL)		;FIRST BYTE OF ENTRY [ENTRY TYPE]
+	LD (ENTTYP),A		;STORE ENTRY TYPE
+
+	SLA A			;MULTIPLY BY 2
+	LD HL,SUBTAB		;BASE OF SUBROUTINE TABLE
+	LD C,A			;SUBROUTINE NUMBER
+	LD B,0			;PUT IN BC AS WORD
+	ADD HL,BC		;ADD TO BASE AND POINT TO SUB RTN NAME
+	LD C,(HL)		;PUT IN BC ADDRESS TO JUMP TO
+	INC HL			;
+	LD B,(HL)		;
+	PUSH BC			;PUT IT IN HL
+	POP HL			;
+
+	JP (HL)			;GO TO SUBROUTINE
+;
+
+	;***************************************************************
+	;		END OF TABLE ROUTINE  (ENTRY = 0)
+	;***************************************************************
+
+DOEND:				
+	CALL FINCAT		;RESET TABLE POINTERS, ETC, ETC
+	JP XDOSCR
+;
+	;****************************************************************
+	;		CATWALK ROUTINE  (ENTRY = 1)
+	;****************************************************************
+
+DOCAT:			
+	ASIGN16. (ENTLEN),5			;LENGTH OF TABLE ENTRY
+
+	COPBUF (BEGBUF),CX,4			;MOVE TABLE ENTRY TO
+						;CATWALK BUFFER
+	
+	ASIGN8. (SCASE),0			;THIS CHECKS FOR SPECIAL CASE
+	IF8. (CEXP),.EQ.,2			;IN SCREEN #10 WHERE WE MUST
+	    ASIGN8. (SCASE),1			;DRAW SECTIONS OF THE CATWALK
+	    ASIGN8. (CEXP),0			;ONE SECTION AT A TIME DUE TO 
+	ENDIF.					;PATTERN BOUNDARIES COLOR
+						;PROBLEMS
+
+	CALL CATTBL				;ADD TO CATWALK TABLE
+
+	IF8. (SCASE),.EQ.,1
+	    PCALL DOPIC,(CX),(CY),CATL		;CATTWALK LEFT
+	    ADD8. (CX),6
+	    PCALL DOPIC,(CX),(CY),CATR		;CATWALK RIGHT
+	ELSE.
+	    ASIGN8. (I),0			;DRAW  NORMAL CATWALK
+	    WHILE8. (I),.LT.,(CJ)
+		PCALL DOPIC,(CX),(CY),CATP
+		ADD8. (I),1
+		ADD8. (CX),12
+	    ENDW.
+	ENDIF.
+
+	IF8. (CEXP),.EQ.,1			;DRAW EXTRA CATWALK PIECE
+		PCALL DOPIC,(CX),(CY),CATL	;IF NECESSARY
+	ENDIF.
+
+	JP INCENT
+;
+	;****************************************************************
+	;		LADDER ROUTINE  (ENTRY = 2)
+	;****************************************************************
+
+DOLAD:	
+	ASIGN16. (ENTLEN),6			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),LX,5			;MOVE TABLE ENTRY TO
+						;LADDER BUFFER
+
+	IF8. (LBY),.GT.,0			;ADD TO LADDER TABLE
+	    CALL LADTBL				;IF NOT LADDER EXTENSION
+	ENDIF.
+
+	ASIGN8. (I),0				;DRAW LADDER
+	WHILE8. (I),.LT.,(LJ)
+		PCALL DOPIC,(LX),(LY),LADL
+		ADD8. (I),1
+		ADD8. (LY),8
+	ENDW.
+
+	JP INCENT
+;
+	;****************************************************************
+	;		SLIDE ROUTINE   - DOWN  (ENTRY = 3)
+	;				- RIGHT (ENTRY = 4)
+	;				- LEFT  (ENTRY = 5)
+	;****************************************************************
+
+DOSLD:			
+	ASIGN16. (ENTLEN),6			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),SX,5			;MOVE TABLE ENTRY TO
+						;SLIDE BUFFER
+
+	IF8. (SBX),.GT.,0			;ADD TO SLIDE TABLE	
+	    CALL SLDTBL				;IF NOT SLIDE EXTENSION
+	ENDIF.
+
+	ASIGN8. (I),0				
+	WHILE8. (I),.LT.,(SJ)
+	    IF8. (ENTTYP),.EQ.,3		;DRAW SLIDE (DOWN)
+		PCALL DOPIC,(SX),(SY),SLID
+		ADD8. (SY),8
+		ADD8. (I),1
+	    ELSE.
+		IF8. (ENTTYP),.EQ.,4		;DRAW SLIDE (RIGHT)
+		    PCALL DOPIC,(SX),(SY),SLIR
+		    ADD8. (SX),8
+		    ADD8. (SY),5
+		    ADD8. (I),1
+		ELSE.
+		    PCALL DOPIC,(SX),(SY),SLIL	;DRAW SLIDE (LEFT)
+		    SUB8. (SX),8
+		    ADD8. (SY),5
+		    ADD8. (I),1
+		ENDIF.
+	    ENDIF.
+	ENDW.
+
+	JP INCENT
+;
+	;****************************************************************
+	;		RAMP ROUTINE  (ENTRY = 6)
+	;****************************************************************
+
+DORMP:
+	ASIGN16. (ENTLEN),5			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),RX,4			;MOVE TABLE ENTRY TO
+						;RAMP BUFFER
+
+	ASIGN8. (I),0				;DRAW RAMP
+	WHILE8. (I),.LT.,(RJ)
+
+		PCALL DOPIC,(RX),(RY),CATR
+
+		CALL RMPTBL			;ADD TO CATWALK/RAMP TABLE
+
+		ADD8. (RX),6
+		IF8. (RPK),.EQ.,0		;CHECK RAMP DIRECTION
+			SUB8. (RY),1
+		ELSE.
+			ADD8. (RY),1			
+		ENDIF.
+		ADD8. (I),1
+	ENDW.
+
+	JP INCENT
+
+
+;
+	;****************************************************************
+	;		TREASURE ROUTINE  (ENTRY = 7)
+	;****************************************************************
+
+DOTSE:
+	ASIGN16. (ENTLEN),12			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),TSX,11			;MOVE TABLE ENTRY TO
+						;TREASURE BUFFER
+
+	PCALL DOPIC,(TSX),(TSY),(TSADD)		;DRAW TREASURE
+
+	CALL TSETBL				;ADD TO TREASURE TABLE
+
+
+	JP INCENT
+;
+	;****************************************************************
+	;		MONSTER ROUTINE  (ENTRY = 8)
+	;	THIS RTN SIMPLY CALLS THE RTN TO ADD MONSTERS TO THE
+	;	MONSTER TABLE. THE ACTUAL DRAWING OF THE MONSTERS IS 
+	;	NOT NECESSARY SINCE THEY WILL BE ACTIVATED AS SPRITES
+	;****************************************************************
+
+DOMON:			
+	ASIGN16. (ENTLEN),7			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),MY,6			;MOVE TABLE ENTRY TO
+						;MONSTER BUFFER
+
+	CALL MONTBL				;RTN TO ADD TO MONSTER TBL
+
+	JP INCENT
+;
+	;****************************************************************
+	;		CHOP ROUTINE  (ENTRY = 9)
+	;****************************************************************
+
+DOCHOP:			
+	ASIGN16. (ENTLEN),3			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),CHX,4			;MOVE TABLE ENTRY TO
+						;CHOP BUFFER
+
+	ASIGN8. (ORFLAG),0			;DRAW SPACES
+	ASIGN8. (OVFLAG),1
+	PCALL DOPIC,(CHX),(CHY),BLK
+	ASIGN8. (ORFLAG),1
+	ASIGN8. (OVFLAG),0
+
+	JP INCENT
+;
+	;****************************************************************
+	;		TRANSPORTER ROUTINE - (ENTRY = 10)
+	;****************************************************************
+
+DOTRR:			
+	ASIGN16. (ENTLEN),4			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),TRX,3			;MOVE TABLE ENTRY TO
+						;TRANSPORTER BUFFER
+
+	CALL TRRTBL				;ADD TO TRANSPORTER TABLE
+
+	PCALL DOPIC,(TRX),(TRY),TRR		;DRAW TRANSPORTER
+
+	ASIGN8.	(DX),(TRX)			;NUMBER - X COORDINATE
+	ADD8.	(DX),8
+	ASIGN8.	(DY),(TRY)			;NUMBER - Y COORDINATE
+	ADD8.	(DY),2
+
+	IF8. (TRNUM),.EQ.,4			;DETERMINE TRANSPORTER
+	    PCALL DOPIC (DX),(DY),TFOR		;NUMBER AND DRAW
+	ELSE.	
+	    IF8. (TRNUM),.EQ.,3
+		PCALL DOPIC (DX),(DY),TTRE
+	    ELSE.
+		IF8. (TRNUM),.EQ.,2
+		    PCALL DOPIC (DX),(DY),TTWO
+		ELSE.
+		    PCALL DOPIC (DX),(DY),TONE
+		ENDIF.
+	    ENDIF.
+	ENDIF.	   
+
+
+	JP INCENT
+
+;
+	;****************************************************************
+	;		MOVING PLATFORM ROUTINE  (ENTRY = 11)
+	;	THIS RTN SIMPLY CALLS THE RTN TO ADD MOVING PLATFORMS TO THE
+	;	MOVING PLATFORM TABLE. THE ACTUAL DRAWING OF THE PLATFORMS IS 
+	;	NOT NECESSARY SINCE THEY WILL BE ACTIVATED AS SPRITES
+	;****************************************************************
+
+DOMPT:			
+	ASIGN16. (ENTLEN),8			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),MPLLX,7			;MOVE TABLE ENTRY TO
+						;MOVING PLATFORM BUFFER
+
+	CALL MPLTBL				;RTN TO ADD TO MOVING PLATFORM
+						;TABLE
+
+	JP INCENT
+;
+	;****************************************************************
+	;	    FIXED PLATFORM ROUNTINE - (ENTRY = 12)
+	;****************************************************************
+
+DOPLT:			
+	ASIGN16. (ENTLEN),4			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),PLX,3			;MOVE TABLE ENTRY TO
+						;FIXED PLATFORM TABLE
+
+	ASIGN8. (I),0				;DRAW PLATFORM
+	WHILE8. (I),.LT.,(PLJ)
+		PCALL DOPIC,(PLX),(PLY),PLAT
+		ADD8. (PLX),8
+		ADD8. (I),1
+	ENDW.
+
+	JP INCENT
+;
+	;****************************************************************
+	;	    	TRACK ROUNTINE - (ENTRY = 13)
+	;****************************************************************
+
+DOTRK:			
+	ASIGN16. (ENTLEN),4			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),TKX,3			;MOVE TABLE ENTRY TO
+						;TRACK BUFFER
+
+	ASIGN8. (I),0				;DRAW TRACKS
+	WHILE8. (I),.LT.,(TKJ)
+		PCALL DOPIC,(TKX),(TKY),TRK
+		ADD8. (TKX),6
+		ADD8. (I),1
+	ENDW.
+
+	PCALL DOPIC,(TKX),(TKY),TRKE		;DRAW TRACK END PIECE
+
+	JP INCENT
+;
+	;****************************************************************
+	;		WALL ROUTINE - (ENTRY = 14)
+	;****************************************************************
+
+DOWAL:			
+	ASIGN16. (ENTLEN),7			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),WTX,6			;MOVE TABLE ENTRY TO
+						;WALL/ROOF BUFFER
+
+	IF8. (WTBLI),.EQ.,1			;IF TABLE ENTRY REQUIRED
+	    CALL WALTBL				;ADD TO WALL/ROOF TABLE
+	ENDIF.
+
+	ASIGN8. (I),0
+	
+	IF8. (ENTTYP),.EQ.,14			;IF WALL ENTRY
+	    WHILE8. (I),.LT.,(WJ)
+		PCALL DOPIC (WTX),(WTY),WALL	;DRAW WALL
+		ADD8. (WTY),8
+		ADD8. (I),1
+	    ENDW.
+	ELSE.					;IF ROOF ENTRY
+	    WHILE8. (I),.LT.,(WJ)
+		PCALL DOPIC (WTX),(WTY),ROOF	;DRAW ROOF
+		ADD8. (WTX),8
+		ADD8. (I),1
+	    ENDW.
+	ENDIF.
+
+	JP INCENT
+;
+	;****************************************************************
+	;	    SPECIAL EFFECTS ROUTINE - (ENTRY = 16)
+	;****************************************************************
+
+DOEFF:			
+	ASIGN16. (ENTLEN),2			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),EFFCDE,1		;MOVE TABLE ENTRY TO 
+						;SPECIAL EFFECTS BUFFER
+
+	IF8. (EFFCDE),.EQ.,1			;RADIOACTIVE MARTINI
+	    ASIGN8. (MARFLG),1
+	ELSE.
+	    IF8. (EFFCDE),.EQ.,2		;RADIOACTIVE WASTE
+		ASIGN8. (WASFLG),1
+	    ELSE.
+		IF8. (EFFCDE),.EQ.,3		;PLUNGERS
+		    ASIGN8. (PLUFLG),1
+		ELSE.
+		    IF8. (EFFCDE),.EQ.,4	;LIFT
+			ASIGN8. (DILIFT),1
+			ASIGN8. (LIFTX),0ABH
+			ASIGN8. (LIFTY),160
+		    ELSE.
+			IF8. (EFFCDE),.EQ.,5	;CANNON
+			    ASIGN8. (CANX),0B6H
+			    ASIGN8. (CANY),157
+			ENDIF.	;=5
+		    ENDIF.	;=4
+		ENDIF.		;=3
+	    ENDIF.		;=2
+	ENDIF.			;=1
+
+	JP INCENT
+;
+	;*******************************************************************
+	;		CHARGES ROUTINE - (ENTRY = 17)
+	;*******************************************************************
+
+DOCHG:
+	ASIGN16. (ENTLEN),1
+
+	ASIGN8. (DX),40
+	ASIGN8. (DY),93
+	PCALL DOPIC,(DX),(DY),JBTNT
+
+	ASIGN8. (DX),56
+	ASIGN8. (DY),16
+	PCALL DOPIC,(DX),(DY),JRTNT
+
+	ASIGN8. (DX),88
+	ASIGN8. (DY),16
+	PCALL DOPIC,(DX),(DY),JCHARG
+
+	ASIGN8. (DX),176
+	ASIGN8. (DY),16
+	PCALL DOPIC,(DX),(DY),TONS
+
+	JP INCENT
+;
+
+	;****************************************************************
+	;	BOUNTY BOB / NUMBER OF CATWALKS / TIMER ROUTINE
+	;			(ENTRY = 18)
+	;****************************************************************
+
+DOBOB:			
+	ASIGN16. (ENTLEN),5			;LENGTH OF ENTRY
+
+	COPBUF (BEGBUF),BBX,4
+	
+	ASIGN8. (BOBX),(BBX)			;BOB X
+	ASIGN8. (BOBY),(BBY)			;BOB Y
+	ASIGN8. (TIMER),(BBTIME)		;TIMER
+	ASIGN8. (CATCNT),(BBCAT)		;NO OF CATWALKS
+
+	JP INCENT
+
+
+
+
+	;****************************************************************
+	;	INCREMENT SCREEN TABLE POINTER - RETURN TO MAINLINE
+	;****************************************************************
+
+INCENT:
+	ADD16. (ENTRY),(ENTLEN)			;INCREMENT POINTER
+	JP ENTLOO
+
+
+;
+;**************************************************************************
+;	ROUTINES TO SET UP TABLE PARMETERS AND CALL APPROPRIATE
+;	ROUTINES TO ACTUALLY ADD ENTRIES TO THE VARIOUS TABLES
+;**************************************************************************
+
+
+	;**************************************************
+	;     LOAD UP PARMETERS AND CALL RTN TO
+	;     ADD ENTRY TO CATWALK TABLE
+	;**************************************************	
+
+CATTBL:
+	LD BC,(CX)				;X COORDINATE
+	LD DE,(CY)				;Y COORDINATE
+	LD HL,(CEXP)				;EXTRA PIECE
+	LD A,(CJ)				;NO PAIRS OF SECTIONS
+	SLA A					;TIMES 2 TO GIVE NO
+	ADD A,L					;ADD EXTRA PIECE
+
+	CALL ADDENT				;RTN TO ADD TABLE ENTRY
+
+	RET
+
+;
+	;**************************************************
+	;     LOAD UP PARMETERS AND CALL RTN TO
+	;     ADD ENTRY TO LADDER TABLE
+	;**************************************************	
+
+LADTBL:
+	LD HL,LASLAD			;POINTER ADDRESS
+	LD C,(HL)			;LOW BYTE AT POINTER PUT IT IN C
+	INC HL				;HIGH BYTE
+	LD B,(HL)			;PUT IN B
+	LD H,B				;MOVE INTO HL FROM BC TABLE 
+	LD L,C				;ADDRESS POINTED TO BY 'LASLAD'
+
+	ASIGN8. (DX),(LX)		;X COORDINATE TO WORK AREA
+	ADD8. (DX),1			;ADJUST X PIXELS
+	ASIGN8. (DY),(LY)		;Y COORDINATE TO WORK AREA
+	SUB8.	(DY),(LADJ)		;ADJUST Y PIXELS
+
+	LD A,(DX)			;TOP X
+	LD B,A
+	LD A,(DY)			;TOP Y
+	LD C,A
+	LD A,(DX)			;BOTTOM X (ALWALYS SAME AS TOP X)
+	LD D,A
+	LD A,(LBY)			;BOTTOM Y
+	LD E,A
+
+	CALL ADDTAB			;ADD ENTRY TO TABLE AND RESET POINTER
+
+	LD B,H				;PUT ADDRESS OF NEXT TABLE ENTRY
+	LD C,L				;IN BC
+	LD HL,LASLAD			;GET LADDER TABLE POINTER ADDRESS
+	LD (HL),C			;LOAD NEW ENTRY VALUE
+	INC HL				;  FROM BC
+	LD (HL),B			;    TO (HL)	
+
+	RET
+;
+	;**************************************************
+	;     LOAD UP PARMETERS AND CALL RTN TO
+	;     ADD ENTRY TO SLIDE TABLE
+	;**************************************************	
+SLDTBL:
+	LD HL,LASSLI			;POINTER ADDRESS
+	LD C,(HL)			;LOW BYTE AT POINTER PUT IT IN C
+	INC HL				;HIGH BYTE
+	LD B,(HL)			;PUT IN B
+	LD H,B				;MOVE INTO HL FROM BC TABLE 
+	LD L,C				;ADDRESS POINTED TO BY 'LASSLI'
+
+	ASIGN8. (DX),(SX)		;X COORDINATE TO WORK AREA
+	ASIGN8. (DY),(SY)		;Y COORDINATE TO WORK AREA
+
+	IF8.(ENTTYP),.EQ.,5		;ADJUST X COORDINATE
+	    ADD8.  (DX),12
+	ENDIF.
+	SUB8.	(DY),6			;ADJUST Y COORDINATE
+
+	LD A,(DX)			;TOP X
+	LD B,A
+	LD A,(DY)			;TOP Y
+	LD C,A
+	LD A,(SBX)			;BOTTOM X 
+	LD D,A
+	LD A,(SBY)			;BOTTOM Y
+	LD E,A
+
+	CALL ADDTAB			;ADD ENTRY TO TABLE AND RESET POINTER
+
+	LD B,H				;PUT ADDRESS OF NEXT TABLE ENTRY
+	LD C,L				;IN BC
+	LD HL,LASSLI			;GET SLIDE TABLE POINTER ADDRESS
+	LD (HL),C			;LOAD NEW ENTRY VALUE
+	INC HL				;  FROM BC
+	LD (HL),B			;    TO (HL)	
+
+	RET
+;
+	;*****************************************************************
+	;	LOAD UP PARMETERS AND CALL ROUTINE TO ACTUALLY
+	;	ADD TABLE ENTRY TO CATWALK/RAMP TABLE
+	;*****************************************************************
+
+RMPTBL:
+	LD BC,(RX)			;X COORDINATE
+	LD DE,(RY)			;Y COORDINATE
+	LD A,1				;NO OF SECTIONS
+
+	CALL ADDENT			;CALL RTN TO ADD TO TABLE
+
+	RET
+;
+	;***************************************************
+	;       LOAD UP PARAMETERS AND CALL RTN TO 
+	;	MAKE ENTRY INTO TREASURE TABLE
+	;***************************************************
+
+TSETBL:
+	LD A,(TSTX)			;TOP X 
+	LD B,A		
+	LD A,(TSTY)			;TOP Y
+	LD C,A		
+	LD A,(TSBX)			;BOTTOM X
+	LD D,A
+	LD A,(TSBY)			;BOTTOM Y
+	LD E,A		
+	LD A,(TSEXD)			;TREASURE X DIMENSION
+	LD H,A			
+	LD A,(TSEYD)			;TREASURE Y DIMENSION
+	LD L,A		
+	LD A,(TSVAL)			;POINTER TO TREASURE VALUE TABLE
+
+	CALL ADDTSE			;ADD ENTRY TO TABLE AND RESET POINTER
+
+	RET
+
+;
+	;**************************************************
+	;     LOAD UP PARMETERS AND CALL RTN TO
+	;     ADD ENTRY TO TRANSPORTER TABLE
+	;**************************************************	
+TRRTBL:
+	LD HL,LASTRR			;POINTER ADDRESS
+	LD C,(HL)			;LOW BYTE AT POINTER PUT IT IN C
+	INC HL				;HIGH BYTE
+	LD B,(HL)			;PUT IN B
+	LD H,B				;MOVE INTO HL FROM BC TABLE 
+	LD L,C				;ADDRESS POINTED TO BY 'LASTRR'
+
+	ASIGN8. (DX),(TRX)		;X COORDINATE TO WORK AREA
+	ASIGN8. (DY),(TRY)		;Y COORDINATE TO WORK AREA
+	ADD8.	(DY),39			;ADJUST Y COORDINATE
+
+	LD A,(DX)			;TOP X
+	LD B,A
+	LD A,(DY)			;TOP Y
+	LD C,A
+	LD D,0				;DUMMY OUT
+	LD E,0				;DUMMY OUT
+
+	CALL ADDTAB			;ADD ENTRY TO TABLE AND RESET POINTER
+
+	LD B,H				;PUT ADDRESS OF NEXT TABLE ENTRY
+	LD C,L				;IN BC
+	LD HL,LASTRR			;GET SLIDE TABLE POINTER ADDRESS
+	LD (HL),C			;LOAD NEW ENTRY VALUE
+	INC HL				;  FROM BC
+	LD (HL),B			;    TO (HL)	
+
+	RET
+;
+	;**************************************************
+	;     LOAD UP PARMETERS AND CALL RTN TO
+	;     ADD ENTRY TO MONSTER TABLE
+	;**************************************************	
+
+MONTBL:
+	LD A,02CH			;MONSTER VALUE (TEMPORARY)
+	LD B,A
+	LD A,(MY)			;Y COODINATE
+	LD C,A
+	LD A,(MLX)			;LEFT X
+	LD D,A
+	LD A,(MRX)			;RIGHT X
+	LD E,A
+	LD A,(MDIR)			;MONSTER DIRECTION
+	LD H,A		
+	LD A,(MINT)			;SPEED INTERVAL
+	LD L,A
+	LD A,(MPX)			;PRESENT X
+	
+	CALL ADDMON			;RTN TO ADD TO MONSTER TABLE
+
+	RET
+;
+	;**************************************************
+	;     LOAD UP PARMETERS AND CALL RTN TO
+	;     ADD ENTRY TO MOVING PLATFORM TABLE
+	;**************************************************	
+
+MPLTBL:
+	LD A,(MPLLX)			;LEFT X
+	LD B,A
+	LD A,(MPLRX)			;RIGHT X
+	LD C,A
+	LD A,(MPLPX)			;PRESENT X
+	LD D,A
+	LD A,(MPLPY)			;PRESENT Y
+	LD E,A
+	LD A,(MPLPAT)			;PLATFORM SIZE
+	LD H,A		
+	LD A,(MPLINT)			;PLATFORM SPEED 
+	LD L,A
+	LD A,(MPLDIR)			;INITIAL DIRECTION
+	
+	CALL ADDMPL			;RTN TO ADD TO MOVING PLATFORM TABLE
+
+	RET
+;
+	;**************************************************
+	;     LOAD UP PARMETERS AND CALL RTN TO
+	;     ADD ENTRY TO WALL/ROOF TABLE
+	;**************************************************	
+
+WALTBL:
+	LD A,(WTX)			;TOP X
+	LD B,A
+	LD A,(WTY)			;TOP Y
+	LD C,A
+	LD A,(WBX)			;BOTTOM X
+	LD D,A
+	LD A,(WBY)			;BOTTOM Y
+	LD E,A
+	
+	CALL ADDWAL			;RTN TO ADD TO WALL/ROOF TABLE
+
+	RET
+;
+;*************************************************************************
+;		EXIT 'DOSCR' SUBROUTINE
+;*************************************************************************
+
+
+XDOSCR:
+
+	RET	;END OF DOSCR SUBROUTINE
+
+	END 	;END OF PROGRAM	
+
+
+
+

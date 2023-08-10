@@ -1,0 +1,332 @@
+;
+;**************************************************************************
+;
+;
+;	FILE NAME:		COMMON.MRO
+;
+;	DESCRIPTION:
+;		COMMON.MRO contains some handy macros for use in 
+;		developing application software. All macros have
+;		been written for Z-80 programs.
+;
+;	AUTHOR:			Bill Bourne and others
+;	DATE and ISSUE:		July 5, 1982	2.0
+;	CATALOGUE ID:		MRO - AS - 0001
+;
+;
+;	ADDED INC8. AND DEC8. MAR 14/84
+;
+NABUSYS   EQU	    0008H
+;
+CLEAR     EQU        00
+BLACK     EQU        01
+MGREEN    EQU        02
+LGREEN    EQU        03
+DBLUE     EQU        04
+LBLUE     EQU        05
+DRED      EQU        06
+CYAN      EQU        07
+MRED      EQU        08
+LRED      EQU        09
+DYELLOW   EQU        0AH
+LYELLOW   EQU        0BH
+DGREEN    EQU        0CH
+MAGENTA   EQU        0DH
+GREY      EQU        0EH
+WHITE     EQU        0FH
+;
+N.KYBD		EQU	0
+N.SCRN		EQU	1
+N.PRTR		EQU	2
+;
+KEYBOARD	EQU	0
+DSCREEN		EQU	1
+DLIST		EQU	2
+DREADER		EQU	3
+DPUNCH		EQU	4
+;
+;	DEVICE NUMBERS FOR KEYBOARD HANDLER
+;
+KEYSTROKE EQU	     01H	; Keystroke device number
+JSTCK1	  EQU	     02H	; Joystick 1 device number
+JSTCK2	  EQU	     03H	; Joystick 2 device number
+JSTCK3	  EQU	     04H	; Joystick 3 device number
+JSTCK4    EQU	     05H	; Joystick 4 device number
+PADDL1	  EQU	     08H	; Paddle 1 device number
+PADL1B	  EQU	     09H	; Paddle 1B device number
+PADDL2	  EQU	     0AH	; Paddle 2 device number
+PADL2B    EQU	     0BH	; Paddle 2B device number
+PADDL3	  EQU	     0CH	; Paddle 3 device number
+PADL3B    EQU	     0DH	; Paddle 3B device number
+PADDL4    EQU	     0EH	; Paddle 4 device number
+PADL4B    EQU	     0FH	; Paddle 4B device number
+
+
+;
+;***********************************
+;
+PCALL     MACRO      SUBR, PARM1, PARM2, PARM3
+          IFNB       <PARM1>
+          LD         BC, PARM1
+          ENDIF
+          IFNB       <PARM2>
+          LD         DE, PARM2
+          ENDIF
+          IFNB       <PARM3>
+          LD         HL, PARM3
+          ENDIF
+          CALL       SUBR
+          ENDM
+;
+;*********************************
+;
+;
+F8CALL    MACRO      RETVAR, SUBR, PARM1, PARM2, PARM3
+          IFNB       <PARM1>
+          LD         BC, PARM1
+          ENDIF
+          IFNB       <PARM2>
+          LD         DE, PARM2
+          ENDIF
+          IFNB       <PARM3>
+          LD         HL, PARM3
+          ENDIF
+          CALL       SUBR
+          LD         RETVAR, A
+          ENDM
+;
+;*********************************
+;
+;
+F16CALL   MACRO      RETVAR, SUBR, PARM1, PARM2, PARM3
+          IFNB       <PARM1>
+          LD         BC, PARM1
+          ENDIF
+          IFNB       <PARM2>
+          LD         DE, PARM2
+          ENDIF
+          IFNB       <PARM3>
+          LD         HL, PARM3
+          ENDIF
+          CALL       SUBR
+          LD         RETVAR, HL
+          ENDM
+;
+;*********************************
+;
+;
+CPMCALL   MACRO      TYPE, PARM
+          PCALL      0005, TYPE, PARM
+          ENDM
+;
+;*********************************
+;
+;
+DEFMSG    MACRO      XPOS, YPOS, MSG
+          LOCAL      END, START
+          DB         XPOS
+          DB         YPOS
+          DB         END-START
+START:    DB         MSG
+END:
+          ENDM
+;
+;********************************
+;
+;
+SETCOLR   MACRO      BACK,TEXT
+          IFB        <TEXT>
+           PCALL     VREGWR, 07, 10H+BACK
+          ELSE
+           PCALL     VREGWR, 07, TEXT*10H+BACK
+          ENDIF
+          ENDM
+;
+;********************************
+;
+;
+AINDEX	  MACRO
+	  LOCAL		NOCARRY
+	  ADD		A,L	
+	  JR		NC,NOCARRY
+	  INC		H
+NOCARRY:  LD		L,A
+	  ENDM
+;
+;*******************************************
+;
+C.CONIN		MACRO
+		LD	C,01
+		CALL	NABYSYS
+		ENDM
+;
+;****************************************
+;
+C.CONOUT	MACRO	DATA
+		LD	A,DATA
+		LD	E,A
+		LD	C,02
+		CALL	NABUSYS
+		ENDM
+;
+;*****************************************
+;
+C.RDRIN		MACRO
+		LD	C,03
+		CALL	NABUSYS
+		ENDM
+;
+;******************************************
+;
+C.PUNOUT	MACRO	DATA
+		LD	A,DATA
+		LD	E,A
+		LD	C,04
+		CALL	NABUSYS
+		ENDM
+;
+;*****************************************
+;
+C.LSTOUT	MACRO	DATA
+		LD	A,DATA
+		LD	E,A
+		LD	C,05
+		CALL	NABUSYS
+		ENDM
+;
+;*****************************************
+;
+C.DIRIO		MACRO	TYPE,DATA
+		IFB	<DATA>
+		THEN
+		 LD	E,0FFH
+		ELSE
+		 LD	A,DATA
+		 LD	E,A
+		ENDIF
+		LD	C,06
+		CALL	NABUSYS
+		ENDM
+;
+;**************************************
+;
+C.PRTSTR	MACRO	STRPTR
+		LD	DE,STRPTR
+		LD	C,09
+		CALL	NABUSYS
+		ENDM
+;
+;****************************************
+;
+C.RDBUF		MACRO	BUFPTR
+		LD	DE,BUFPTR
+		LD	C,10D
+		CALL	NABUSYS
+		ENDM
+;
+;*************************************
+;
+C.DEFBUF	MACRO	NAME,LENGTH
+NAME:		DB	LENGTH
+N&NAME:		DB	00
+B&NAME:		DS	LENGTH
+		ENDM
+;
+;**************************************
+;
+N.ATTACH	MACRO	LOGICAL,PHYSICAL
+		LD	A,LOGICAL
+		LD	D,A
+		LD	A,PHYSICAL
+		LD	E,A
+		LD	C,08AH
+		CALL	NABUSYS
+		ENDM
+;
+;***************************************
+;
+N.CLKAT		MACRO	TASKADR
+		LD	DE,TASKADR
+		LD	C,08BH
+		CALL	NABUSYS
+		ENDM
+;
+;***************************************
+;
+N.CLKRV		MACRO	TASKADR
+		LD	DE,TASKADR
+		LD	C,08CH
+		CALL	NABUSYS
+		ENDM
+;
+;***************************************
+;
+N.WIDCR		MACRO	NUMBER,WDPTR
+		LOCAL	NEXT,PTR
+		JR	NEXT
+PTR:		DB	NUMBER
+		DW	WDPTR
+NEXT:		LD	DE,PTR
+		LD	C,08FH
+		CALL	NABUSYS
+		ENDM
+;
+;*****************************************
+;
+N.LINKIO	MACRO	IOSPTR
+		LD	DE,IOSPTR
+		LD	C,090H
+		CALL	NABUSYS
+		ENDM
+;
+;*****************************************
+;
+N.DEVRDY	MACRO	DEVICE,LOCATN
+		LD	E,LOCATN
+		LD	C,DEVICE*2+0A0H
+		CALL	NABUSYS
+		ENDM
+;
+;*****************************************
+;
+N.DEVIO		MACRO	DEVICE, LOCATN, DATA
+		IFNB	<DATA>
+		 LD	A,DATA
+		 LD	D,A
+		ENDIF
+		LD	E,LOCATN
+		LD	C,DEVICE*2+0A1H
+		CALL	NABUSYS
+		ENDM
+;
+;*******************************************
+;
+N.WIDDEF	MACRO	NAME,TOP,WIDTH,DEPTH,TYPE,CURSPAT
+NAME:		DW	TOP
+		DB	WIDTH
+		DB	DEPTH
+		DB	TYPE
+		DB	CURSPAT
+		DB	0
+		DB	0
+		DB	0FFH
+		DB	0FFH
+		DB	0FFH
+		DB	0FFH
+		DB	0FFH
+		ENDM
+;
+;**************************************
+;
+INC8.	MACRO	LOC
+	LD	A,LOC
+	INC	A
+	LD	LOC,A
+ENDM
+;
+DEC8.	MACRO	LOC
+	LD	A,LOC
+	DEC	A
+	LD	LOC,A
+ENDM
+

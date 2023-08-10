@@ -1,0 +1,180 @@
+This file explains all of the source files for Miner 2049er, that 
+were the responsibility of Leo Binkowski.
+
+Last update:   May 25, 1984
+
+these are in alphabetical order only.
+
+
+BEAM.MAC:
+
+     contains code pertaining to the use of the transporters, but 
+not the code checking to see if he can use it (cf. CHKBOB.MAC)
+
+
+BOB.MAC:
+
+     contains  code  for displaying bob,  the task that  controls 
+bob,  the dying animation,  the radioactive state of bob.   Bob's 
+control task includes jumping, walking, and falling.
+
+BOBSPR.MAC:
+
+     is  a  gred file containing sprite definitions for  all  the 
+contortions of bob, the moving platforms, hydraulic lift, and the 
+cannon.
+
+CANNON.MAC:
+
+     contains  code for movement and displaying of the cannon  on 
+the tenth screen.
+
+
+CHKBOB.MAC
+     
+     contains  code  for checking all of the conditions  of  bobs 
+environment  excluding  mutants.    This  includes  checking  for 
+catwalks (routine in Joaquin's code),  slides,  transporters, the 
+lift, cannon, moving platforms, and ladders.
+
+ENDSCR.MAC:
+
+     is  a modified version of the standard shell (Chang  Chow's) 
+which puts up the final screen scores,  Nabu logo,  and  standard 
+options.
+
+ENG1.MAC:
+
+
+     this  is  a  compressed  version  of  the  standard  english 
+character   set  which  strips  the  header  bytes  off  of  each 
+definition and also does not have the inverse set.   I load  this 
+table twice into vram to simulate the inverse characters.
+
+
+
+KEYBOARD.MAC:
+
+     contains  code  for the task that reads all of the  keyboard 
+status (keys and joystick),  which loads a variable which i  read 
+later.   It  also  reads the proper joystick depending  on  which 
+player  is currently playing,  and if the player selected the two 
+joystick option.
+
+MAIN.MAC:
+
+     one  of the files in the standard shell,  modified a  slight 
+bit to run to my specs (very similar to PAC-MAN).
+
+MINER.MAC:
+
+     contains  code  which controls the  mainline,  sets  up  the 
+tasks, reads the help, restart keys and acts accordingly, etc.
+
+MOPENGR.MAC:
+
+     is  an  ascii version of the ned file which is  the  opening 
+scren definition.
+
+MOVELIFT.MAC:
+
+     is  a  file  which contains all of the code to  display  the 
+lift, and move it about. It is partially called by miner.mac as a 
+part of the mainline.
+
+OPEN.MAC:
+
+     part  of the standard shell which does the standard  opening 
+instruction screen, help, print help, and a jump to options.
+
+OPTION.MAC:
+
+     contains  the  code  to put up the options and  use  of  the 
+highlight bars and selection of options.
+
+PLATFORM.MAC:
+
+     contains code for the setup of the platforms.  Also contains 
+the   task  which  drives  the  platforms,   this  includes   the 
+radioactive platform on screen 8 as well.  Also contains checking 
+routine for the platforms.
+
+PTHGR1.MAC:
+
+     print help routine, used in OPEN.MAC
+
+PUTNG.MAC:
+
+     this puts a ned graphics screen up.
+
+
+REVERSE.MAC:
+
+     standard shell file that reverses a line of text.
+
+SETUP.MAC:
+
+     standard shell file that sets up it's own video.
+
+
+SLIDE.MAC:
+
+     contains the code for use of the slides.
+
+
+SOUND.MAC:
+
+     contains the sound task which runs throughout the game.  All 
+sounds are run through here.
+
+SUPPORT.MAC:
+
+     some support routines that I use (mostly in CHKBOB).
+
+********************************************************
+note:  all other mac files were used as test files,  although not 
+necessary in the game at this time,  they may be used at a  later 
+time and therefore should not be deleted.
+
+
+SUBMIT FILES:
+
+LEOLIB.SUB:
+
+     this  creates a library that Joaquin used for testing of his 
+code.
+
+LMINER.SUB:
+
+     this  creates a stripped down version of  miner,  only  when 
+other  things like using open.old is done.   The game got too big 
+to link under L80 so PLINK was used later on
+
+M.SUB:
+
+     a quick submit file to assemble files.
+
+     ex.  A>@ M MINER
+
+        would produce this command:
+
+          A>M80 B:=A:MINER.MAC
+
+NOTE:      WHEN ASSEMBLING,  ALL MAC FILES MUST BE ON THE  SOURCE 
+DISK AND THE REL FILES MUST BE PUT ON THE OBJECT DISK.
+
+TO LINK THE GAME TOGETHER:
+
+
+1.    A current version of Joaquin's JLIB.REL must be present  on 
+the object disk.
+
+2.    With  the source disk in A:  and the object disk in B:,  do 
+this:
+
+     A>PLINK @LMINER.LNK
+
+this  will take a fair amount of time to produce about a 47K COM 
+file.
+
+

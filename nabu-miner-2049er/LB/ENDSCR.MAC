@@ -1,0 +1,193 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        ENDSCR.MAC                               *
+;*                                                               *
+;*    MODULE PART NO.: 73-90038680 NAME:  Miner 2049er		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      THIS DOES THE STANDARD ENDING SCREEN IN MINER 2049ER.    *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   22 MAY 84    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 
+		 .Z80
+ 		.RADIX 10
+ 		CSEG
+
+ 		INCLUDE COMMON.MRO
+		INCLUDE LINKTAB.EXA
+		INCLUDE	CLKAT.MRO
+		INCLUDE	ADDRESS.EQU
+		INCLUDE STRUCT.MRO
+		EXTRN	HELP,RESTART,POSTOP,ENG2,BIZFLG
+		EXTRN	PUTLOGO,DRWSCN,CLR
+		EXTRN	ENGLISH,NUMPLA
+		EXTRN	CYCOOR,CXCOOR,OLDX,OLDY,CHOICE
+		EXTRN	REVERSE,SETUP,BIZDATA
+;
+;DEFINE THE MESSAGE BLOCK FOR THE ENDING SCREEN
+;
+MESG1:		DEFMSG 15,3,'MINER 2049er'
+MESG2:		DEFMSG 3, 8,'PLAYER 1 SCORE:'
+MESG2A:		DEFMSG 3, 9,'PLAYER 2 SCORE:'
+MESG3:		DEFMSG 3,11,'HIGH SCORE:'
+MESG4:		DEFMSG 3,15,'SAME OPTIONS? PRESS GO'
+MESG5:		DEFMSG 3,17,'NEW  OPTIONS? PRESS RESTART'
+MESG6:		DEFMSG 3,19,'NEW  CHOICE?  PRESS EXIT'
+SPCMSG:		DEFMSG 3,9,'                       '
+;
+;
+;NOW DEFINE A DATA STRUCTURE POINTING TO THE MESSAGE BLOCKS
+;
+DATA:		DW 	MESG1,MESG2,MESG2A,MESG3,MESG4,MESG5,MESG6
+ENDATA:
+;
+;	PUT THE SCORE IN ASCII IN  VARIABLE SCORE
+;	UP TO 6 DIGITS
+; 	AND IT WILL BE PUT ON SCREEN
+SCUP::	
+XC1:		DB	18
+YC1:		DB	8		
+LENG1:		DB	6
+SCORE1::	DB	0,0,0,0,0,0
+SC2UP::
+	DB	18,9,6
+SCORE2::	DB	0,0,0,0,0,0
+;
+;	PUT THE HIGH SCORE IN VARIABLE HISCOR
+;	UP TO 6 DIGITS
+;
+HSCUP::
+XC2:		DB	18
+YC2:		DB	11
+LENG2:		DB	6
+HISCOR::	DB	0,0,0,0,0,0
+;	
+;	WAIT FOR A KEYSTROKE AND WHEN ONE IS RECIEVED JUMP TO RESTART
+;	OR HELP OR NEW GAME
+;
+ENDSCR::	CALL	VBLKON
+	        CALL	VSETG1
+		PCALL	VPTRNST,VPTRNAD
+		PCALL	VNAMEST,VNAMEAD
+		PCALL	VNAMEST,VNAMEAD
+		PCALL	VCOLRST,VCOLRAD
+		PCALL	RPATRN,ENGLISH			;LOAD PATTERN TABLE
+		PCALL	VRAMLD,760,ENG2,VPTRNAD+20H*8
+		PCALL	VRAMLD,760,ENG2,VPTRNAD+0A0H*8
+		PCALL	VFILL,0400H,020H,VNAMEAD	;FILL SCREEN WITH BLANKS
+		PCALL	VRAML8,32,CLR,VCOLRAD		;LOAD COLOR TABLE
+		SETCOLR	DBLUE,DBLUE			;SET BACKGROUND COLOR
+		IF8.	(BIZFLG),.NE.,0
+		  PCALL VRAMLD,17*32,BIZDATA,VNAMEAD
+		  CALL VBLKOFF
+GLIK:		  JP GLIK
+		ENDIF.
+		PCALL 	PUTLOGO,02H,0H,2		;PUT ON LOGO
+		PCALL	DRWSCN,DATA,ENDATA		;DRAW SCREEN
+	 	PCALL	PUTMSG,SCUP			;PUT ON SCORE
+		PCALL	PUTMSG,HSCUP			;PUT ON HIGH SCORE
+	 	PCALL	PUTMSG,SC2UP
+		PCALL	VBLKOFF
+		IF8.	(NUMPLA),.NE.,2
+		  PCALL PUTMSG,SPCMSG
+		ENDIF.
+		CALL	VBLKOFF
+		LD	A,1
+		LD	(CHOICE),A	;SET CHOICE TO GO KEY
+		LD	A,14
+		LD	(CYCOOR),A	;SET CURSOR Y COOR
+		LD	(OLDY),A	;SET OLD Y COOR	
+		LD	A,16
+		LD	(CXCOOR),A	;SET CURSOR X COOR
+		LD	(OLDX),A	;SET OLD X COOR
+		XOR	A		;CLEAR A REG
+		PCALL	REVERSE,(CXCOOR),(CYCOOR),14	;REVERSE LETTERS
+WAIT:		N.DEVRDY	KEYBOARD,KEYSTROKE	;CHECK FOR DATA
+		AND	A	
+		JP	Z,WAITJ
+		N.DEVIO	KEYBOARD,KEYSTROKE	;GET CHAR
+		CP	0ABH			;TEST FOR RESTART
+		JP	Z,RESTART
+		CP	0BDH
+		JP	Z,RESTART
+		CP	0EAH			;TEST FOR HELP
+		JP	Z,HELP
+		CP	0DH			;CHECK FOR GO KEY
+		JP	Z,POSTOP		;YES - RETURN
+		CP	0E2H			;CHECK CURSOR UP KEY
+		JP	Z,K2
+		CP	0E3H			;CHECK CURSOR DOWN KEY
+		JP	Z,K3
+		JP	WAIT
+WAITJ:		N.DEVRDY	KEYBOARD,JSTCK1		;CHECK FOR DATA
+		AND	A
+		JP	Z,WAIT
+		N.DEVIO	KEYBOARD,JSTCK1
+		BIT	4,A			;CHECK FOR FIRE BUTTON
+		JR	Z,J2
+		LD	A,(CHOICE)	;GET CHOICE
+		CP	1		;CHOICE 1 IS GO KEY
+		JP	Z,POSTOP
+		CP	2
+		JP	Z,RESTART	;CHOICE 2 IS RESTART		
+		CPMCALL	0		;DEFAULT TO CHOICE 2 WHICH IS EXIT
+J2:		BIT	3,A		;CHECK FOR UP BIT
+		JP	Z,J3
+K2:		LD	HL,CYCOOR	;LOAD CURSOR Y COOR ADDRESS IN HL
+		DEC	(HL)
+		DEC	(HL)		;UP TWO LINES
+		LD	A,(CHOICE)	
+		DEC	A		;DECREMENT CHOICE COUNTER
+		JP	NZ,J4
+		LD	A,(CYCOOR)
+		ADD	A,6
+		LD	(CYCOOR),A	;ADD 6 TO CURSOR Y COOR
+		LD	A,3
+		JP	J4
+J3:		BIT	1,A		;CHECK DOWN BIT
+		JP	Z,WAIT
+K3:		LD	HL,CYCOOR
+		INC	(HL)
+		INC	(HL)		;INCREMENT CURSOR Y COOR BY 2
+		LD	A,(CHOICE)
+		INC	A
+		CP	4
+		JP	NZ,J4
+		LD	A,(CYCOOR)
+		SUB	6		;SUBTRACT 4 FROM Y COOR
+		LD	(CYCOOR),A	
+		LD	A,1
+J4:		LD	(CHOICE),A
+		LD	A,1		;SET A REG TO 1
+		PCALL	REVERSE,(OLDX),(OLDY),14 ;CHANGE REVERSED BACK TO  NORMAL LETTERS
+		LD	A,(CXCOOR)
+		LD	(OLDX),A	;SET OLD X COOR TO NEW X COOR
+		LD	A,(CYCOOR)
+		LD	(OLDY),A	;SET OLD Y COOR TO NEW Y COOR
+		XOR	A		;SET A REG TO 0
+		PCALL	REVERSE,(CXCOOR),(CYCOOR),14	;REVERSE NEW LETTERS
+		JP	WAIT	
+
+		END
+

@@ -1,0 +1,474 @@
+        .Z80
+;   TASK CONTROL BLOCK CONSISTS OF AT LEAST THE FOLLOWING :
+;                   BYTE    EQU_NAME        CONTENTS
+;                   0       NXTBLK          NEXT BLOCK ADDRESS
+;                   2       INTRVL          INTERVAL COUNT (IN TICKS)
+;                   3       COUNT           INITL INTERVAL (IN TICKS)
+;                   4       TSKADD          TASK ADDRESS
+;
+;**********************************************************************
+;
+NXTBLK       EQU     0
+INTRVL      EQU     2
+CLKCNT      EQU     3
+TSKADD      EQU     4
+TFLAG       EQU     6
+;
+;
+;    SIZES OF TASK CONTROL BLOCK
+;
+MAXSSZ       EQU     TSKADD + 1  + 1 ;SIZE OF A SKELETAL TCB
+MAXESZ      EQU     TFLAG + 1 + 4   ;SIZE OF AN EXTENDED TCB
+;
+;
+;    TASK FLAG ( TFLAG ) CONTENTS
+;
+HICNTBIT     EQU     0
+HICNTVAL    EQU     1
+;
+HINTBIT              EQU     1
+HINTVAL             EQU     2
+;
+LOMAXBIT     EQU     2
+LOMAXVAL    EQU     4
+;
+HIMAXBIT     EQU     3
+HIMAXVAL    EQU     8
+;
+CANCELLED    EQU     4       ;SIGNAL FROM TASK - IT REMOVED ITSELF
+CANCVAL             EQU     16
+;
+;
+;**************************************************************************
+;
+;
+;    MACRO NAME: TSKELT
+;
+;    FILE NAME: CLKAT.EXA
+;
+;    DESCRIPTION: INITLIZES THE SKELETON OF A TCB
+;
+;    AUTHOR: DENNIS ANDERSEN
+;   DATE and ISSUE:         Aug 10,1982    Version 1.2
+;   CATALOGUE ID:           MRO - AS - 0013
+;
+;    PARAMETERS PASSED: TASK - ADDRESS OF TASK
+;                      TCB  - TASK CONTROL BLOCK ADDRESS
+;                      INTRVL - TIME BETWEEN CALLS - MAX = 255 TICKS
+;                      INITL - TIME BEFORE STARTING UP - MAX =255 TICKS
+;			ARGS - ARGUMENTS FOR THE PARAMETER BLOCK
+;			( MUST BE IN ANGLED BRACKETS IF MORE THAN ONE ARG)
+;
+;    PARAMETERS RETURNED: HL = ADDRESS OF TFLAG IN TCB
+;
+;    REGISTERS CLOBBERED: A, BC, DE, HL
+;
+;    GLOBALS ACCESSED: NONE DIRECTLY
+;
+;    GLOBALS WRITTEN: NONE DIRECTLY
+;
+;    COMMENTS and WARNINGS:
+;                   DOES NOT INITLIZE FLAG - USE BASTSK OR
+;                   OTHER MACRO IF YOU DON'T KNOW WHAT YOU ARE
+;                   DOING WITH THE FLAG. USE ONLY WHEN NO
+;                   OPTIONS ARE EVER TO BE USED IN A TASK.
+;
+;**********************************************************************
+;
+;
+TSKELT  MACRO  TASK, TCB, INTRVL, INITL, ARGS
+;;
+    XOR A
+    LD HL,TCB               
+    LD (HL),A		    ;SET NULL POINTER
+    INC HL
+    LD (HL),A
+    INC HL
+    LD A,INTRVL		    ;PUT INTRVL IN TCB
+    LD (HL),A               ;PUT INITL COUNT IN INTRVL
+    INC HL
+    LD A,INITL
+    LD (HL),A
+    INC HL                  ;POINT TO FLAG BYTE
+    LD DE,TASK              ;PUT TASK ADDRESS IN
+    LD (HL),E
+    INC HL
+    LD (HL),D
+    INC HL
+    IFNB <ARGS>
+    IRP Y,<ARGS>	    ;PUT USERS ARGUMENTS INTO PARAMETER BLOCK
+    LD A,Y
+    LD (HL),A
+    INC HL
+    ENDM		    ;END REPT OF ARGS
+    ENDIF
+;;
+    ENDM
+;
+;**************************************************************************
+;
+;
+;    MACRO NAME: BASTSK
+;
+;    FILE NAME: CLKAT.EXA
+;
+;    DESCRIPTION: SETS UP THE TCB FOR A TASK, AND HAS IT ATTACHED.
+;                THE TASK IN THIS CASE USES THE ELEMENTARY FEATURES
+;                OF THE CLOCK ISR.
+;
+;    AUTHOR: DENNIS ANDERSEN
+;   DATE and ISSUE:         July 5,1982    Version 1.0
+;   CATALOGUE ID:           MRO - AS - 0014
+;
+;    PARAMETERS PASSED: TASK - ADDRESS OF TASK
+;                      TCB  - TASK CONTROL BLOCK ADDRESS
+;                      INTRVL - TIME BETWEEN CALLS - MAX = 255 TICKS
+;                      INITL - TIME BEFORE STARTING UP - MAX =255 TICKS
+;			ARGS - ARGUMENTS TO BE PLACED IN PARAMETER BLOCK
+;			 (IF MORE THAN ONE,MUST BE PLACED IN ANGLED
+;			  BRACKETS)
+;
+;
+;    PARAMETERS RETURNED: HL = ADDRESS OF FLAG
+;
+;    REGISTERS CLOBBERED: A, BC, DE, HL
+;
+;    GLOBALS ACCESSED: NONE DIRECTLY
+;
+;    GLOBALS WRITTEN: NONE DIRECTLY
+;
+;    COMMENTS and WARNINGS:
+;                           THE TASK AND TCB MUST BE ABSOLUTE - THAT IS
+;                            THEY CANNOT BE PASSED IN SOME OTHER LOCATION.
+;                           IN THIS MACRO, INTRVL AND INITL MAY BE
+;                           PASSED INDIRECTLY THROUGH SOME MEMORY LOCATION.
+;
+;**********************************************************************
+;
+;
+BASTSK  MACRO  TASK, TCB, INTRVL, INITL, ARGS
+;;
+    TSKELT TASK,TCB,INTRVL, INITL, <ARGS>
+    XOR A                   ;SET TFLAG TO 'NO OPTIONS'
+    LD (HL),A
+;;
+    ENDM
+;
+;
+;**************************************************************************
+;
+;
+;    MACRO NAME: ADDTSK
+;
+;    FILE NAME: CLKAT.EXA
+;
+;     DESCRIPTION: SETS UP TCB FOR A TASK. CAN HAVE 8 OR 16 BIT
+;                ARGUMENTS FOR INTRVL, INITL, AND MAXCALLS.
+;                ALSO ALLOWS MAXCALLS.
+;
+;    AUTHOR: DENNIS ANDERSEN
+;    DATE and ISSUE:         July 5,1982    Version 1.0
+;    CATALOGUE ID:           MRO - AS - 0015
+;
+;
+;    PARAMETERS PASSED: TASK - TASK ADDRESS
+;                      TCB  - TASK CONTROL BLOCK ADDRESS
+;                      INTRVL - 8 OR 16 BIT VALUE FOR INTRVL
+;                      INITL - 8 OR 16 BIT VALUE FOR INITL COUNT
+;                      MAXCALLS - 8 OR 16 BIT MAXIMUM NUMBER OF CALLS
+;			ARGS - ARGUMENTS FOR THE PARAMETER BLOCK
+;			( MUST BE IN ANGLED BRACKETS IF MORE THAN ONE ARG)
+;
+;    PARAMETERS RETURNED: HL = ADDRESS OF NEXT BYTE TO BE INITLIZED
+;
+;    REGISTERS CLOBBERED: A, BC, DE, HL
+;
+;    GLOBALS ACCESSED: NONE DIRECTLY
+;
+;    GLOBALS WRITTEN: NONE DIRECTLY
+;
+;    COMMENTS and WARNINGS:
+;                           CANNOT PASS ANY ARGUMENTS INDIRECTLY!
+;
+;**********************************************************************
+;
+;
+ADDTSK       MACRO  TASK, TCB, INTRVL, INITL, MAXCLS, ARGS
+;;
+ADDFLG      DEFL    0
+LOINT       DEFL    LOW INTRVL
+HINT        DEFL    HIGH INTRVL
+LOCNT       DEFL    LOW INITL
+HICNT       DEFL    HIGH INITL
+    IFNB <MAXCLS>
+LOMAX       DEFL    LOW MAXCLS
+HIMAX DEFL    HIGH MAXCLS
+    ENDIF
+    TSKELT TASK, TCB, LOINT, LOCNT
+    IF HINT OR HICNT
+ADDFLG      DEFL    ADDFLG + HICNTVAL
+    ENDIF
+    IF HINT
+ADDFLG      DEFL    ADDFLG + HINTVAL
+    ENDIF
+    IFNB <MAXCLS>
+ADDFLG      DEFL    ADDFLG + LOMAXVAL
+      IF HIMAX
+ADDFLG      DEFL    ADDFLG + HIMAXVAL
+      ENDIF
+    ENDIF
+    LD (HL),ADDFLG          ;STORE FLAGS
+    IF HINT
+    INC HL                  ;PUT HI BYTE OF INTRVL IN
+    LD (HL), HINT
+    ENDIF
+    IF HICNT OR HINT
+    INC HL                  ;PUT HI BYTE OF COUNT IN
+    LD (HL),HICNT
+    ENDIF
+    IFNB <MAXCLS>
+    INC HL                  ;PUT LSB OF MAXCALL COUNT IN
+    LD (HL),LOMAX
+      IF HIMAX
+    INC HL
+    LD (HL),HIMAX           ;PUT MSB OF MAXCALL COUNT IN
+      ENDIF
+    ENDIF
+    INC HL                  ;POINT TO NEXT BYTE
+    IFNB <ARGS>
+    IRP Y,<ARGS>	    ;PUT USERS ARGUMENTS INTO PARAMETER BLOCK
+    LD A,Y
+    LD (HL),A
+    INC HL
+    ENDM		    ;END REPT OF ARGS
+    ENDIF
+;;
+    ENDM
+;
+;
+;**************************************************************************
+;
+;
+;    MACRO NAME: BEGTSK
+;
+;    FILE NAME: CLKAT.EXA
+;
+;    DESCRIPTION: PROVIDES EXTRA POWER TO THE CLOCK ISR ROUTINE BY
+;                   USING THE TASK FLAG ( TFLAG ) TO EXTEND COUNTS
+;                   FOR THE INTRVL, AND INITL COUNT, AND PERMITS
+;                   USE OF 8 OR 16 BIT MAXIMUM NUMBER OF CALLS.
+;
+;
+;    AUTHOR: DENNIS ANDERSEN
+;    DATE and ISSUE:         July 5,1982    Version 1.0
+;    CATALOGUE ID:           MRO - AS - 0016
+;
+;    PARAMETERS PASSED: IX = ADDRESS OF TASK CONTROL BLOCK
+;
+;    PARAMETERS RETURNED: HL = NEXT ADDRESS IN TCB
+;
+;    REGISTERS CLOBBERED: A, BC, DE, HL
+;
+;     GLOBALS ACCESSED: NONE
+;
+;    GLOBALS WRITTEN: NONE
+;
+;    COMMENTS and WARNINGS: WHEN MAXCLS IS ZERO, THE TASK WILL
+;           BE REMOVED.
+;                           THIS MACRO IS CALLED AT THE VERY
+;           BEGINNING OF A TASK. NO OTHER CODE SHOULD BE EXECUTED
+;           FIRST.
+;
+;**********************************************************************
+;
+;
+BEGTSK       MACRO
+    ;;
+    CALL CHKTSK             ;SEE IF TASK CAN BE STARTED
+    RET NZ                  ;RETURN TO CLOCK ISR IF FLAG SET
+    ;;
+    ENDM
+;
+;
+;**************************************************************************
+;
+;
+;    MACRO NAME: SKLTCB
+;
+;    FILE NAME: CLKAT.EXA
+;
+;    DESCRIPTION: DEFINES STORAGE FOR A TASK CONTROL BLOCK (TCB) FOR
+;                   A SKELETON TYPE TASK. THAT IS, THE TASK WILL HAVE
+;                   NO FLAGS, AND THE TCB CAN BE SET UP USING TSKELT.
+;
+;    AUTHOR: DENNIS ANDERSEN
+;    DATE and ISSUE:         July 5,1982    Version 1.0
+;    CATALOGUE ID:           MRO - AS - 0017
+;
+;    PARAMETERS PASSED: 
+;			BYTES - NUMBER OF BYTES TO RESERVE FOR PARAMETER BLOCK
+;
+;    PARAMETERS RETURNED: NONE
+;
+;    REGISTERS CLOBBERED: NONE
+;
+;    GLOBALS ACCESSED: NONE
+;
+;    GLOBALS WRITTEN: NONE
+;
+;    COMMENTS and WARNINGS:
+;
+;**********************************************************************
+;
+;
+SKLTCB       MACRO BYTES
+    ;;
+    DS MAXSSZ               ;;STOP AFTER TASK ADDRESS
+    IFNB <BYTES>
+    DS BYTES
+    ENDIF
+    ;;
+    ENDM
+;
+;
+;
+;**************************************************************************
+;
+;
+;    MACRO NAME: EXTDTB
+;
+;    FILE NAME: CLKAT.EXA
+;
+;    DESCRIPTION: DEFINES STORAGE FOR A TASK CONTROL BLOCK (TCB) FOR
+;                   A EXTENDED TYPE TASK. THAT IS, THE TASK WILL HAVE
+;                   FLAGS, AND THE TCB CANNOT BE SET UP USING TSKELT - IT
+;                   MUST BE SET UP USING BASTSK, OR ADDTSK.
+;
+;    AUTHOR: DENNIS ANDERSEN
+;    DATE and ISSUE:         July 5,1982    Version 1.0
+;    CATALOGUE ID:           MRO - AS - 0018
+;
+;    PARAMETERS PASSED: 
+;			BYTES - NUMBER OF BYTES TO RESERVE FOR PARAMETER BLOCK
+;
+;    PARAMETERS RETURNED: NONE
+;
+;    REGISTERS CLOBBERED: NONE
+;
+;    GLOBALS ACCESSED: NONE
+;
+;    GLOBALS WRITTEN: NONE
+;
+;    COMMENTS and WARNINGS:
+;
+;**********************************************************************
+;
+;
+EXTDTB       MACRO BYTES
+    ;;
+    DS MAXESZ               ;;STOP AFTER HI BYTE OF MAXCLS
+    IFNB <BYTES>
+    DS BYTES
+    ENDIF
+    ;;
+    ENDM
+;
+;
+;**************************************************************************
+;
+;
+;	MACRO NAME: SETSK
+;
+;--------------------------------------------
+;
+;	FILE NAME: CLKAT.EXA
+;
+;	DESCRIPTION:
+;			SETS UP A SKELETAL TCB AND ATTACHES THE TASK
+;
+;    AUTHOR: DENNIS ANDERSEN
+;    DATE and ISSUE:         July 5,1982    Version 1.0
+;    CATALOGUE ID:           MRO - AS - 0019
+;
+;	PARAMETERS PASSED:
+;			TASK - TASK ADDRESS
+;                      TCB  - TASK CONTROL BLOCK ADDRESS
+;                      INTRVL - 8 BIT VALUE FOR INTRVL
+;                      INITL - 8 BIT VALUE FOR INITL COUNT
+;			ARGS - ARGUMENTS FOR THE PARAMETER BLOCK
+;			( MUST BE IN ANGLED BRACKETS IF MORE THAN ONE ARG)
+;
+;
+;	PARAMETERS RETURNED: 
+;			NONE
+;
+;	REGISTERS CLOBBERED:
+;			A, BC, DE, HL
+;
+;	GLOBALS ACCESSED: NONE
+;
+;	GLOBALS WRITTEN: NONE
+;
+;	COMMENTS and WARNINGS:
+;
+;**********************************************************************
+;
+;
+;
+SETSK 	MACRO TASK, TCB, INTRVL, INITL, ARGS
+	TSKELT TASK, TCB, INTRVL, INITL, ARGS	;SET UP TCB
+	PCALL 0008H, 08BH, TCB			;ATTACH TO CLOCK
+	ENDM
+;
+;
+;
+;**************************************************************************
+;
+;
+;	MACRO NAME: EXSETSK
+;
+;--------------------------------------------
+;
+;	FILE NAME: CLKAT.EXA
+;
+;	DESCRIPTION:
+;			SETS UP A EXTENDED TCB AND ATTACHES THE TASK
+;
+;    AUTHOR: DENNIS ANDERSEN
+;    DATE and ISSUE:         July 5,1982    Version 1.0
+;    CATALOGUE ID:           MRO - AS - 0020
+;
+;	PARAMETERS PASSED:
+;			TASK - TASK ADDRESS
+;                      TCB  - TASK CONTROL BLOCK ADDRESS
+;                      INTRVL - 8 BIT VALUE FOR INTRVL
+;                      INITL - 8 BIT VALUE FOR INITL COUNT
+;			MAXCLS - 8 OR 16 BIT MAXIMUM CALL COUNT - 1
+;			(OPTIONAL)
+;			ARGS - ARGUMENTS FOR THE PARAMETER BLOCK
+;			( MUST BE IN ANGLED BRACKETS IF MORE THAN ONE ARG)
+;			(OPTIONAL)
+;
+;
+;	PARAMETERS RETURNED: 
+;			NONE
+;
+;	REGISTERS CLOBBERED:
+;			A, BC, DE, HL
+;
+;	GLOBALS ACCESSED: NONE
+;
+;	GLOBALS WRITTEN: NONE
+;
+;	COMMENTS and WARNINGS:
+;
+;**********************************************************************
+;
+;
+;
+EXSETSK MACRO TASK, TCB, INTRVL, INITL, MAXCLS, ARGS
+	ADDTSK TASK, TCB, INTRVL, INITL, MAXCLS, ARGS	;SET UP TCB
+	PCALL CLKAT, TCB
+	ENDM
+;
+

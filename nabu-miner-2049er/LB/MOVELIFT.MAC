@@ -1,0 +1,261 @@
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:             MOVELIFT.MAC  	                 *
+;*                                                               *
+;*    MODULE PART NO.: 73-90034420 NAME:  MINER 2049er 		 *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*	This file contains all of the code pertaining to	 *
+;*	the hydraulic lift operation.				 *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski                                   *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*                                                               *
+;*****************************************************************
+;*                                                               *
+;*    REVISION HISTORY: (current first)                          *
+;*                                                               *
+;*    Rev.    Date       Created By         Revision Details     *
+;*    ---  ----------  ---------------  -----------------------  *
+;*                                                               *
+;*    01   04 OCT 83    L. Binkowski    Initial release to spec  *
+;*                                                               *
+;*****************************************************************
+ 
+	.Z80
+	.RADIX	10
+	.XLIST
+	INCLUDE	COMMON.MRO
+	INCLUDE	STRUCT.MRO
+	INCLUDE	MINER.EQU
+	INCLUDE	ARITH.MRO
+	INCLUDE LINKTAB.EXA
+	.LIST
+	TOPSCAF	EQU	48H
+	FULLSCAF EQU	4CH
+	WRKSCAF	EQU	50H
+	LOFSET	EQU	192-12
+	WHEELS	EQU	54H
+	LILLIM	EQU	59H
+	LIRLIM	EQU	0ABH
+	LIULIM	EQU	59H
+	LIDLIM	EQU	0A4H
+	EXTRN	MBSPR,BOBX,BOBY
+LIFTDIR::
+	DB	00H		;CURRENT LIFT DIRECTION
+LIFTX::	DB	00H		;CURRENT LIFT X COORD
+LIFTY::	DB	00H		;CURRENT LIFT Y COORD
+LIFTPT::DW	0000H		;POINTER TO LIFT DATA
+LDIFF::	DB	00H		;DIFFERENCE BETWEEN LIFTY AND BOTTOM OF LIFT
+XDIFF::	DB	00H
+DILIFT::DB	00H
+LIFTGL::DB	00H
+TMPLY:	DB	00H
+LIFTSP::
+	DS	10*4		;RAM IMAGE OF SPRITE ATTRIBUTE TABLE FOR LIFT
+ENDLIFT:
+WRKIMG::
+	DS	33
+ORGIMG:
+ DB 0E0H,038H,00EH,003H,003H,00EH,038H,0E0H
+ DB 0E0H,038H,00EH,003H,003H,00EH,038H,0E0H
+ DB 007H,01CH,070H,0C0H,0C0H,070H,01CH,007H
+ DB 007H,01CH,070H,0C0H,0C0H,070H,01CH,007H
+;
+;		ROUTINE NAME:	MOVELIFT
+;		FILE NAME:	MOVELIFT.MAC
+;		AUTHOR:		Leo Binkowski
+;		DATE:		APRIL 2, 1984
+;
+;	DESCRIPTION:
+;
+;	This routine moves the hydraulic lift up, down left, or right.
+;	one pixel.
+;
+;
+;	PARAMETERS PASSED:
+;		BC	- Lift direction
+;			
+;	PARAMETERS RETURNED:
+;
+;	none
+;
+;	GLOBALS ACESSED:
+;
+;	COMMENTS AND WARNINGS:
+;
+;	Changes BOB's location.
+;
+MOVELIFT::
+	LD	A,C
+	LD	(LIFTDIR),A
+	CASE.	(LIFTDIR)	;CONSIDERING THE DIRECTION.....
+	STMT.	NOLIFT
+		;YAH..I KNOW, BUT THIS IS JUST SO'S IT'LL RUN THROUGH, AND
+		;DISPLAY WITHOUT ALTERING THE COORDINATES
+	STMT.	UPLIFT
+		IF8. (LIFTY),.GT.,LIULIM
+		  LD A,(LIFTGL)
+		  XOR	1
+		  LD (LIFTGL),A
+		  RET Z
+		  DEC8.	(LIFTY)
+		  DEC8.	(BOBY)
+		ENDIF.
+	STMT.	DNLIFT
+		IF8. (LIFTY),.LT.,LIDLIM
+		  INC8.	(LIFTY)
+		  INC8.	(BOBY)
+		ENDIF.
+	STMT.	LTLIFT
+		IF8. (LIFTX),.GT.,LILLIM
+		  DEC8.	(LIFTX)
+		  DEC8.	(BOBX)
+		ENDIF.
+	STMT.	RTLIFT
+		IF8. (LIFTX),.LT.,LIRLIM
+		  INC8.	(LIFTX)
+		  INC8.	(BOBX)
+		ENDIF.
+	ENDC.	5
+	ASIGN8.	(DILIFT),TRUE
+	RET
+	;
+LIFTMAIN::
+	;RUN IN THE MAINLINE
+	LD	A,(DILIFT)		;SHOULD WE REDISPLAY THE LIFT?
+	AND	A
+	RET	Z			;NO...RETURN TO MAINLINE
+	;
+	LD	A,(LIFTX)
+	LD	BC,(LIFTY)
+	OR	C
+	RET	Z	
+	LD	HL,LIFTSP		;PUT THE POINTER AT THE BEGINNING OF
+					;THE TABLE
+	LD	A,(LIFTY)		;GET THE FIRST Y
+	LD	(HL),A			;PUT IT DOWN
+	INC	HL
+	LD	A,(LIFTX)		;GET THE X
+	LD	(HL),A			;PUT IT IN
+	INC	HL
+	LD	A,TOPSCAF		;GIVE IT THE NAME OF THE TOP SCAFFOLD
+	LD	(HL),A			;(THE ONE WITH A PLATFORM)
+	INC	HL			;NOW DO THE COLOR
+	LD	A,WHITE
+	LD	(HL),A		
+	INC	HL			;NEXT ENTRY
+	LD	(LIFTPT),HL		
+	ASIGN8.	(LDIFF),LOFSET		;INITIALIZE THE DIFFERENCE
+	ASIGN8.	(TMPLY),(LIFTY)
+	ADD8.	(TMPLY),16		;MAKE IT THE 2ND VALUE (ALREADY DID 1)
+	SUB8.	(LDIFF),(TMPLY)		;GET THE DIFFERENCE BETWEEN THE Y
+					;COORDINATE AND THE BOTTOM OF THE LIFT
+	WHILE8.	(LDIFF),.GT.,16		;ONLY FOR ALL OF THE FULL SPRITES
+	  LD	HL,(LIFTPT)		;GET THE POINTER IN THE LIFT SPITES
+	  LD	A,(TMPLY)		;GET THE VALUE TO PLOP THERE
+	  LD	(HL),A			;PUT IT..
+	  INC	HL
+	  LD	A,(LIFTX)
+	  LD	(HL),A			;GIVE IT THE X
+	  INC	HL
+	  LD	A,FULLSCAF		;GET THE FULL SCAFFOLD NAME
+	  LD	(HL),A			;STORE IT AT THIS ENTRY
+	  INC	HL			;MOVE THE POINTER TO THE NEXT ENTRY
+	  LD	A,WHITE			;GIVE IT THE COLOR
+	  LD	(HL),A
+	  INC	HL
+	  LD	(LIFTPT),HL		;STORE AWAY THE NEW POINTER
+	  ADD8. (TMPLY),16		;MOVE THE Y DOWN ANOTHER SPRITE
+	  SUB8.	(LDIFF),16		;NOW MAKE THE DIFFERENCE SMALLER
+	ENDW.
+	;
+	;	NOW SINCE ALLL OF THE OTHER SPRITES ARE DONE, WE
+	;	MAKE THE LAST ENTRY A SCRATCHPAD SPRITE.
+	LD	HL,(LIFTPT)		
+	LD	A,(TMPLY)		;PUT THE Y
+	LD	(HL),A
+	INC	HL
+	LD	A,(LIFTX)		;AND THE X
+	LD	(HL),A
+	INC	HL
+	LD	A,WRKSCAF		;AND THE NAME OF THE WORKING SCAFFOLD
+	LD	(HL),A
+	INC	HL
+	LD	A,WHITE			;AND FINALLY THE COLOR
+	LD	(HL),A
+	INC	HL
+	;
+	;NOW DO THE BOTTOM LIFT ASSEMBLY (WHEELS ETC.)
+	;
+	LD	A,LOFSET
+	LD	(HL),A
+	INC	HL
+	LD	A,(LIFTX)
+	LD	(HL),A
+	INC	HL
+	LD	A,WHEELS
+	LD	(HL),A
+	INC	HL
+	LD	A,WHITE
+	LD	(HL),A
+	INC	HL
+	LD	(LIFTPT),HL
+	;
+	;HERE WE GET RID OF THE EXTRANEOUS SPRITES
+	;
+	WHILE16. (LIFTPT),.LT.,ENDLIFT
+	  LD	HL,(LIFTPT)
+	  LD	A,0C0H
+	  LD	(HL),A
+	  INC	HL
+	  LD	(LIFTPT),HL
+	ENDW.
+	;
+	;NOW LOAD THE ORIGINAL IMAGE INTO THE WORKING IMAGE.
+	;
+	LD	BC,32
+	LD	HL,ORGIMG
+	LD	DE,WRKIMG
+	LDIR
+	;
+	;	NOW WE WORK ON THE RAM IMAGE OF THIS SPRITE SO'S WE CAN PLOP
+	;	IT INTO VRAM LATER.
+	;
+
+WRK1:	LD	HL,WRKIMG		;GET THE ADDRESS OF THE WORKING IMAGE
+	LD	BC,(LDIFF)
+	;
+	LD	B,0			;CLEAR HIGH ORDER GARBAGE
+	ADD	HL,BC			;ADD EM
+	PUSH	HL			;HL->BC
+	LD	BC,16
+	ADD	HL,BC
+	PUSH	HL
+	POP	BC
+	POP	HL			;DO FOR THE ADJACENT DEFINITION 
+	XOR	A			;WE'LL CLEAR IT
+	LD	(HL),A			;FOR FIRST DEF
+	LD	(BC),A			;FOR ADJACENT DEF
+	INC8.	(LDIFF)	
+	CP	16
+	JP	C,WRK1			;BACK FOR MORE
+	;
+	PCALL	MBSPR,0,0		;DISPLAY BOB
+	;
+	PCALL	VRAML8,32,WRKIMG,VSPRIAD+50H*8	
+	PCALL	VRAML8,40,LIFTSP,VATRIAD+10*4
+	XOR	A
+	LD	(DILIFT),A
+	RET
+	END
+
+

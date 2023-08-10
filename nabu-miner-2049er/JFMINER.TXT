@@ -1,0 +1,628 @@
+
+     DOCUMENTATION OF FILES WRITTEN FOR MINER 2049er by J. Fernandez
+     ===============================================================
+
+     INTRODUCTION
+     ------------
+
+          The  game  MINER  2049er was basically written  in  two 
+     parts.   Leo Binkowski wrote the "Bounty Bob" portion and JF 
+     wrote  the "Map" portion.   Following is approximately  what 
+     the two parts entailed:
+
+          BOUNTY BOB
+               - Logic  of Bounty Bob as he moves through  screen 
+               (moving on catwalks,  slides, transporters, moving 
+               platforms,   lift,   cannon,   jumping,   falling, 
+               becoming  radioactive,   dieing).    Also  dynamic 
+               special effects such as moving platforms, lift and 
+               cannon.   All  sound is managed from this  module.  
+               Additionally, integration of actual game into Nabu 
+               standard shell,  opening screen,  help,  etc.,  is 
+               done here.
+
+          MAP
+               - Basically  concerned  with mapping  pictures  on 
+               screens   such  as  catwalks,   slides,   ladders, 
+               transporters, shacks, and tables for all of these.  
+               Also monster logic,  radioactive pulverizers,  and 
+               some  static special effects such  as  transporter 
+               colors,   radioactive  martini,   and  radioactive 
+               waste.   Additionally,  scoring  is taken care of, 
+               including timer.
+
+          The following documentation refers to the Map Module as 
+     written by JF.   Functionally,  a library was created of the 
+     Map  files (JLIB.REL) and a library of the Bounty Bob  files 
+     (LEOLIB.REL).    Then  these  two  were  linked  to   create 
+     MINER.COM.
+
+          A note on conditional compiles (CCP) used in Map: Since 
+     the  game was written in two parts it was necessary to  test 
+     each independently.  Conditional compiles were used to allow 
+     the  possibility  of using the same routines both  with  and 
+     without the Bounty Bob module.   Care must be taken that the 
+     files  that use the conditional compiles have the equate CCP 
+     set to the proper value upon compilation.  The following use 
+     conditional  compiles  and  may  be  batch  compiled   using 
+     CCPM.SUB :
+          
+          ADSCOR.MAC
+
+          MONTSK.MAC
+
+          JFMON.MAC
+
+          TIME.MAC
+
+          MAP.MAC
+
+          To  link the Map module for testing (stand alone),  use 
+     L.SUB,  which will create MAP.COM,  without BB.   To  create 
+     JLIB.REL  use JL.SUB.   To create MINER.COM,  insert a  disk 
+     with  LEOLIB.REL in drive B and use MIN.SUB with JLIB.REL in 
+     drive A.
+     
+
+
+     LIST OF FILES       DESCRIPTION
+     -------------       -----------
+
+     ADSCOR.MAC          SCORING SUBROUTINES
+
+     CATMAP.MAC          CATWALK AND OTHER TABLES
+
+     DOSCR.MAC           CREATE SCREENS SUBROUTINES
+
+     JFMON.MAC           MONSTER PART OF MONTSK
+
+     MAP.MAC             MAINLINE, PICTURE SUBROUTINES, PICTURES
+
+     MONTSK.MAC          MONSTER TASK
+
+     NLINKTAB.REL        USED IN TEST (MAP) LINK
+
+     RANDOM.REL          USED  AS EXTERNAL BY PLUENT ROUTINE (SEE 
+                         MONTSK IN MONTSK.MAC)
+
+     SOUND.REL           USED IN TEST (MAP) LINK
+
+     TASK1.MAC           TEST BOUNTY BOB TASK
+
+     TIME.MAC            TIMING TASK AND SUBROUTINES
+
+     SCREENS.MAC         MACROS AND DATA FOR ALL STATIONS
+
+     L.SUB               TEST LINK TO MAP
+
+     JL.SUB              CREATES  LIBRARY (JLIB.REL) TO LINK WITH 
+                         LEO'S LIBRARY (LEOLIB)
+
+     MCCP.SUB            COMPILES   ALL   FILES  THAT  USE   TEST 
+                         CONDITIONAL COMPILE (CCP)
+
+     MIN.SUB             LINKS JLIB.REL WITH LEOLIB.REL TO CREATE 
+                         MINER.COM
+
+
+     CONTENTS OF ADSCOR.MAC
+     ======================
+
+          This file contains scoring routines.
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     ACTADD              Does  actual adding of register pair  BC 
+                         to score.
+
+     BONTSK              Times the updating of the bonus points.
+
+     COPSCO              Copies  player score and extra man  flag 
+                         to working buffers.
+
+     DISCOR              Updates   the   standard  ASCII   scores 
+                         (including   high   score).     Prepares 
+                         buffers and sets flag for SCORUP.
+
+     FREMAN              Gives  present player extra man if score 
+                         reaches  10,000.   It also attaches  the 
+                         extra man task (XMATSK) and  initializes 
+                         the sound for it.
+
+     INISCO              Initializes all score parameters for the 
+                         beginning of a game.
+
+     SCOCOP              Copies working score and extra man  flag 
+                         to player's score and flag.
+
+     SCOTSK              Takes  care of calling SCORUN to put  up 
+                         score whenever it is updated.   If score 
+                         is not updated after a given delay, then 
+                         the score flashing is regulated.
+
+     TIMBON              Updates  the  bonus points  when  screen 
+                         successfully completed.
+
+     XMATSK              Flashes  screen  back-ground  blue/black 
+                         when extra man score is reached.
+
+
+
+     CONTENTS OF CATMAP.MAC
+     ======================
+     
+          This  file  contains routines to initialize  and  build 
+     tables. 
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     ADDENT              Adds entry to catwalk table.  
+
+     ADDMON              Add entry to monster table.
+
+     ADDMPL              Add entry to moving platform table.
+
+     ADDTAB              Adds entry to specified table.  Used for 
+                         ladders, slides, and transporters.
+
+
+     ADDTSE              Add entry to treasure table.
+
+     ADDWAL              Add entry to wall/roof table.
+
+     CKCAT               Checks  whether  BB is on a  catwalk  or 
+                         not.   Sets flag to do CLAIM routine and 
+                         updates bit map for catwalk if BB is on.
+
+     DIV6                Used  by CKCAT to do division by 6 using 
+                         table lookup.
+
+     INCY                Used  by  ADDENT  to  increment  highest 
+                         value of Y-coordinate.
+
+     FINCAT              Does  initializations  at the end  of  a 
+                         screen  creation to prepare  tables  for 
+                         lookups.
+
+     INICAT              Initializes  table pointers before table 
+                         creation.
+
+     NIXMON              Moves all sprites off screen.
+
+     PUTMON              Initializes  monster table  and  creates 
+                         monsters at end of screen creation.
+
+     SETD6               Creates  division by 6 table to be  used 
+                         by DIV6.
+
+     UPCOP               Used  by  ADDENT to insert an  entry  in 
+                         table.
+
+
+
+     CONTENTS OF DOSCR.MAC
+     =====================
+     
+          This  file contains the routines that create the screen 
+     pictures  by reading the appropriate table entries as  build 
+     by SCREENS.MAC.   For each picture, the appropriate table is 
+     updated.   Basically  the  routine DOSCR loops  through  the 
+     entries  and creates whatever picture is  encoded.   Then  a 
+     routine  is  called that sets up the table entry  parameters 
+     and calls the routine from CATMAP.MAC that actually  updates 
+     the table entry.
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     CATTBL              Sets up parameters for catwalk table and 
+                         calls routine to update the table.
+
+     LADTBL              Sets  up parameters for ladder table and 
+                         calls routine to update the table.
+
+     MONTBL              Sets up parameters for monster table and 
+                         calls routine to update the table.
+
+     MPLTBL              Sets  up parameters for moving  platform 
+                         table  and calls routine to  update  the 
+                         table.
+
+     RMPTBL              Sets  up parameters for catwalk (a  ramp 
+                         is  a  type of catwalk) table and  calls 
+                         routine to update the table.
+
+     SLDTBL              Sets  up parameters for slide table  and 
+                         calls routine to update the table.
+
+     TRRTBL              Sets up parameters for transporter table 
+                         and calls routine to update the table.
+
+     TSETBL              Sets  up parameters for  treasure  table 
+                         and calls routine to update the table.
+
+     WALTBL              Sets  up parameters for wall/roof  table 
+                         and calls routine to update the table.
+
+
+
+     CONTENTS OF JFMON.MAC
+     =====================
+
+          This file contains the routine JFMON that takes care of 
+     the monster part of the monster task MONTSK (see MONTSK.MAC).
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     JFMON               Moves monsters, checks monster collision 
+                         with   BB,   sets  flag  if  BB  becomes 
+                         radioactive due to collision or destroys 
+                         monster  and  flashes score value if  BB 
+                         kills monster.
+
+
+     CONTENTS OF MAP.MAC                        
+     ===================
+
+          Contents  include  most picture  creating  routines  of 
+     which  DOPIC  is the basic one.   Data for most pictures  is 
+     also found here.  For testing there is a looping mainline.
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     CLAIM               Claims catwalks and increments score.
+
+     CLRSCR              Clears screen at end of turn.
+
+     DOPIC               Puts up picture on pixel coordinates.
+
+     DOXSHI              Used by DOPIC to shift along  X coordinate.
+
+     GAMOV               Puts up "GAME OVER MINER #" message.
+
+     GAMINI              Does initialization for game.
+
+     JFMAIN              Mainline  that  takes care of  following 
+                         calls:
+
+                         CLAIM     Claim catwalks.
+                         DISTIM    Keep running timer.
+                         DODANG    Tonnage  display  for  Station 
+                                   10.
+                         PUTSCR    Puts  up  appropriate  screen.    
+                         SCORUP    Put up treasure value.
+                         SCOTSK    Keep running scores.
+                         TRRCHG    Change transporter colors.
+                         XMAFLG    Flag is used to turn off extra 
+                                   man task (XMATSK) and sound.
+                         ZOTTSE    Erase   treasures  and   their 
+                                   values.
+     
+     JFSTOP              Used  in  testing end  of  game.   Loops 
+                         until keyboard input detected.
+
+     JFWAIT              Waits for 180 interrupts after GAME OVER 
+                         MINER # message appears.
+
+     JFWTSK              Used by JFWAIT to time wait.
+
+     PUTG1               Creates  flashing  screen in Graphics  1 
+                         mode.
+
+     PUTG2               Resets  Graphics  2  mode  after  proper 
+                         Station  screen has  been  built.   Does 
+                         some last instant initializations before 
+                         screens appears.
+
+     PUTSCR              Take  care  of  player  toggling  logic, 
+                         scoring  saving,  picks proper screen to 
+                         create, calls routines to build screens, 
+                         and initializes tasks, and tables.
+
+     REDNUM              Puts up numbers (miner,  station,  zone) 
+                         in Graphics 1 flashing screen.
+
+     REDOUT              Toggles colors in flashing screen.
+
+     SCORUN              Keeps running score(s) on top of screen.  
+                         Flashes score when player does not score 
+                         for a while.
+
+     SCORUP              Puts  up treasure value at its  location 
+                         when claimed.
+
+     SETNAM              Sets up Pattern table to correspond one-
+                         to-one   to   Name   table,    therefore 
+                         simulating bit mapping.
+
+     WASIDE              Puts   up  sides  of  Radioactive  Waste 
+                         (Station 6).
+
+     ZOTTSE              Erases   treasure   when   claimed,   or 
+                         treasure  value  after  its  been  up  a 
+                         while.
+
+
+     PICTURES  COLOR     DESCRIPTION
+     --------  -----     -----------
+
+     = NOTE =  *         Note:  Asterick  in COLOR column denotes 
+                         that there is a data entry with the same 
+                         name  as  this  one,   but  with  a  "C" 
+                         appended.   This  data entry is for  the 
+                         color   of  the  picture   named.    For 
+                         example, the asterisc by ANV means there 
+                         is  an  entry  ANVC that  is  the  color 
+                         patterns for ANV.
+
+     ANV       *         Anvil.
+
+     AX        *         Ax.
+     BF        *         Refers  to  large "BF" in Atari  version 
+                         (Station  7) that stands for  Big  Five, 
+                         the company that wrote the original.  In 
+                         our version there is a LEO/JF/PAT.
+     BLK       *         Blank.
+     BUR       *         Hambuger.
+     CAKE      *         Cake.
+     CAN       *         Candle.
+     CAND      *         Candelabra.
+     CANT      *         Canteen.
+     CATL      *         Left catwalk piece.
+     CATP      *         Catwalk  pair  comprising  of  left  and 
+                         right pieces.
+     CATR      *         Right catwalk piece.
+     CUP       *         Cup.
+     DET       *         Detonator.
+     FLO       *         Flower pot.
+     FUN       *         Funnel.
+     GOG       *         Goggles.
+     HAM       *         Hammer.
+     IRON      *         Iron.
+     JACK      *         Jack-hammer.
+     JBTNT     *         TNT  part  of  TNT  CHARGE  =  ###  TONS 
+                         (Station 10)
+     JCHARG              CHARGE  = part of TNT CHARGE = ###  TONS 
+                         (Station 10)
+     JCHGC               Color for JCHRG.
+     JMINER              Lettering  for flashing screen  message: 
+                         MINER # PREPARE FOR STATION ## ZONE ##
+     JOY       *         Joystick.
+     JRTNT     *         TNT for TNT shack in Station 10.
+     JUG       *         Jug.
+     KEG1      *         One keg group for Station 10.
+     KEG2      *         Two keg group for Station 10.
+     KEG3      *         Three keg group for Station 10.
+     LADL      *         Left side of ladder.
+     LADR      *         Right side of ladder.
+     MAR       *         Martini.
+     MINBLK              Black color for JMINER.
+     MINRED              Red color for JMINER.
+     MONSTR              Patterns for monster sprites.
+     N80                 Number for treasure value (80).
+     N90                 Number for treasure value (90).
+     N100                Number for treasure value (100).
+     N200                Number for treasure value (200).
+     N300                Number for treasure value (300).
+     N400                Number for treasure value (400).
+     N500                Number for treasure value (500).
+     N600                Number for treasure value (600).
+     N700                Number for treasure value (700).
+     N1100               Number for treasure value (1100).
+     NL100               Small  version  of number  for  treasure 
+                         value (100).
+     NL200               Small  version  of number  for  treasure 
+                         value (200).
+     NL300               Small  version  of number  for  treasure 
+                         value (300).
+     NUMCOL              Color for treasure numbers.
+     NUMIES              Numbers used in scoring and timer,  plus 
+                         small pick (denoting lives left), comma, 
+                         and blank.
+     OLAM      *         Oil lamp.
+     OVM1                GAME OVER MINER # message number one.
+     OVM2                GAME OVER MINER # message number two.
+     OVMESS              GAME OVER MINER # message lettering.
+     PIC       *         Pick.
+     PLAT      *         Bottom platform.
+     PLI       *         Pliers.
+     ROOF                Roof for shacks.
+     SHOV      *         Shovel.
+     SLID      *         Slide down piece.
+     SLIL      *         Slide left piece.
+     SLIR      *         Slide right piece.
+     TFOR                Transporter number (4).
+     TONE                Transporter number (1).
+     TONS      *         TONS  part  of  TNT CHARGE  =  ###  TONS 
+                         message.
+     TRK       *         Track used for lift and cannon.
+     TRKE      *         Track extension.
+     TTRE                Transporter number (3).
+     TTWO                Transporter number (2).
+     TR2       *         Treasure 2.
+     TRR       *         Transporter.
+     WALL      *         Wall used in shacks.
+     WAT       *         Watering can.
+
+
+     CONTENTS OF MONTSK.MAC
+     ======================
+     
+          This file contains the monster task as well as routines 
+     relating  to  some  of  the  special  effects  such  as  the 
+     radiactive martini,  waste, and pulverizers (plungers).  The 
+     actual routine that moves the monsters was split off and may 
+     now be found in JFMON.MAC.
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     ADDOFF              Used by PLUPIC and PDOCOL to add offsets 
+                         of plunger locations to pattern or color 
+                         tables.
+
+     ADDTON              Does  addition of TONNAGE for Station 10 
+                         and sets flags for display of amount and 
+                         for  DANGER message if TONNAGE  is  over 
+                         30.
+
+     CKCOLL              Used   by  various  routines  to   check 
+                         collision  between Bounty Bob and  given 
+                         object.
+
+     CKLIM               Checks   BB  collision  with  limits  in 
+                         table.   Limits  may be  visible  (shack 
+                         walls  and roofs) or invisible (sides of 
+                         the screen).
+
+     DODANG              Takes  care of displaying DANGER message 
+                         for Station 10.
+
+     MARTSK              Radiactive martini task.  Changes colors 
+                         to  make  martini  look  radiactive   in 
+                         Station 5.
+
+     MONTSK              Monster task checks collision between BB 
+                         and treasures.  Sets up the proper flags 
+                         to  erase  treasures,  put  up  treasure 
+                         values and erase treasure values.  Takes 
+                         care of monster colors and flashing when 
+                         required.   Calls  JFMON which does  the 
+                         checking    of   monsters   and    their 
+                         movements.
+
+     MUL816              Multiplication routine used in PUTPLU to 
+                         compute random plunger time delay.
+
+     PDOCOL              Puts  up the appropriate color  for  the 
+                         plungers to make them look radioactive.
+
+     PLUCOL              Takes  care of the timing of the plunger 
+                         colors.  Calls PDOCOL.
+
+     PLUENT              Creates  plunger table with random  time 
+                         delay.
+
+     PLUPIC              Puts   the   plunger   in   the   proper 
+                         coordinates.
+
+     PLUTSK              Plunger  task.   Calls routines to  move 
+                         plungers,  change their colors and check 
+                         collision with BB.
+
+     PUTPLU              Creates  the initial plungers and  calls 
+                         PLUENT to create the tables.
+
+     PUTWAS              Initializes radioctive waste.
+
+     RADMAR              Initializes   and  removes   radioactive 
+                         martini task.
+
+     RADPLU              Initializes   and  removes   radioactive 
+                         plunger task.
+
+     RADWAS              Initializes and removes radiactive waste 
+                         task.
+
+     SETTON              Initializes   screen   for  Station   10 
+                         tonnage message.
+
+     TRRCHG              Changes transporter colors.
+
+     WASTSK              Waste  task.   Changes waste  colors  in 
+                         Station 6 to make it look radiactive.
+
+
+     CONTENTS OF TASK1.MAC
+     =====================
+
+          This  file  contains the task TASK1 that  is  used  for 
+     testing MAP module.
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     TASK1               Used  to test MAP without BB module.   A 
+                         fake  BB  is created and allowed  to  be 
+                         moved around the screen.
+
+
+     CONTENTS OF TIME.MAC
+     ====================
+
+          This file contains the routines that keep the count for 
+     the timer and displays the time left.
+
+     SUBROUTINES         DESCRIPTION
+     -----------         -----------
+
+     DISTIM              When flag set by TIMTSK puts up new time 
+                         on screen.
+
+     TIMTSK              Keeps  count for timer,  sets flag  when 
+                         time  has been updated,  sets flags  for 
+                         time running out and sound.
+
+
+
+     CONTENTS OF SCREENS.MAC
+     =======================
+
+          This  file creates a table that is used by the  routine 
+     DOSCR  to build each of the 10 possible screens.   The table 
+     is therefore divided into 10 sections, one for each Station.  
+     Each entry of this table is input by the use of a macro.  
+
+     MACROS              DESCRIPTION
+     ------              -----------
+
+     CHOP                Puts  blanks.   Used to erase bottom  of 
+                         slides or ladder when they are too long.
+
+     MONENT              Entry to create monster.
+
+     PUTBOB              Gives   BB's  coordinates,   number   of 
+                         catwalks  to claim in screen,  time  for 
+                         screen in Zone 1.
+
+     PUTCAT              Creates catwalk.
+
+     PUTCHG              Creates TNT CHARGE = ### TONS message in 
+                         Station 10.
+
+     PUTEFF              Used  to  flag special effects  such  as 
+                         radioactive    martini,     waste    and 
+                         pulverizers.
+
+     PUTEND              Marks end of entries for a Station.
+
+     PUTLAD              Creates ladder.
+
+     PUTMPT              Creates moving platform.
+
+     PUTPLT              Creates bottom platform.
+
+     PUTRMP              Creates (catwalk) ramp.
+
+     PUTROF              Roof.
+
+     PUTSLD              Slide down.
+
+     PUTSLL              Slide left.
+
+     PUTSLR              Slide right.
+
+     PUTTRK              Track  for  lift (Station 8) and  cannon 
+                         (Station 10).
+
+     PUTTRR              Transporter.
+
+     PUTTSE              Treasure.
+
+     PUTWAL              Wall.
+
+

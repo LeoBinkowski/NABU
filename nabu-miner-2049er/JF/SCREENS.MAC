@@ -1,0 +1,1309 @@
+;******************************************************************
+;	SCREENS.MAC - ROUTINE FOR SCREEN TABLE CREATION
+;	22MAY84		JF	SC2 FIX SLIDE DOT
+;				SC3 MOVE BB BETWEEN IRON AND MUTANT
+;				SC5 DOT WHEN CLAIMING SLIDE 6 
+;				    ADJUST MOVING PLATFORMS
+;				SC6 ADJUST MOVING PLATFORMS
+;				SC7  "
+;	17MAY84		JF	PUT IN NEW BF
+;	16MAY84		JF	ADD TO CATWALK COUNT FOR SC6 [FOR ADDED CATW]
+;				ADD CATWALK FOR SC10
+;				ADJUST CATWALK COUNT FOR SC10
+;				MOVE PLATFORMS LEFT FOR SC9
+;	15MAY84		JF	ADJUST FOR NEW ZOTTSE: SC1 JUG, SC3 DET
+;	14MAY84		JF	SC4 MOVE LADDER CATWALK DOWN
+;				    AND CANTEEN
+;				SC6 MOVE RX OF PLATFORM LEFT 8 PIXS
+;				    PUT EXTRA CATWALK PIECE ON LEFT OF WASTE
+;				SC9 CHANGE COORDINATE OF SLIDE 4 TO MATCH PLAT
+;				SC10 BOBY UP SO HE CAN GO UP LADDER
+;	12MAY84		LB	ATTEMPT TO FIX LEVEL 9 PLATS
+;				LEVEL 5 TOP RIGHT PLAT TO FAR RIGHT
+;				LEVEL 7 CORRECT PLATFORM BUGS
+;	11MAY84		JF	SC10 RIGHT SHACK WALL UP SO BB FITS
+;				SC5 PLATFORM ADJUST
+;				SC8 PLAT ADJUST
+;				SC9 PLAT ADJUST
+;	10MAY84		PA	CHANGES AS OUTLINED
+;	10MAY84		JF	CHANGED PUTWAL'S SO TOP X NEVER = 0
+;	09MAY84		JF	SC7 TRR/SLD COLOR PROBLEM
+;				SC8 BROKEN LADDER TABLE
+;				SC9/SC10 LADDER BOTTOMS
+;	08MAY84		JF	SC3	MOVE TOP 2 MONSTERS LEFT 4 PIXS
+;					PX OF MON 3.4
+;				CHECK ALL BOBX BOBY
+;				SC5/SC7 ONE FAST MONSTER AT BOTTOM
+;				SC9 BOTTOM LADDER TABLE
+;				SC5 MOVE BB OVER
+;				SC8 BROKEN LADDER TABLE
+;	04MAY84		JF	SC5 DOT ON SLIDE
+;				SC9 IRON ERASE
+;				SC10 WEIRD BOP ????
+;				SC8 SLIDE TABLE
+;	03MAY84		JF	PUT IN PAT'S STUFF
+;	02MAY84		JF	NEW MONSTER TIMES
+;			JF	LITTLE SCORES
+;	27-APR-84	JF 	PUT IN NEW MONSTER SPEEDS FOR TEST
+;			JF	FAKE PX'X FOR PUTMPT'S FOR SC7
+;******************************************************************
+
+	.Z80
+;******************************************************************
+;		 MACROS TO BUILD SCREENS		
+;******************************************************************
+
+	;*********************************************************
+	;   MACRO TO BUILD CATWALK TABLE ENTRY
+	;	PX - X COORDINATE
+	;	PY - Y COORDINATE
+	;	PJ - NUMBER OF SECTION PAIRS
+	;	PP - EXTRA PIECE INDICATOR
+	;*********************************************************
+
+	PUTCAT	MACRO	  PX,PY,PJ,PP
+		DB	1,PX,PY,PJ,PP
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD LADDER TABLE ENTRY
+	;	PX  - X COORDINATE
+	;	PY  - Y COORDINATE
+	;	PJ  - NUMBER OF LADDER RUNG PAIRS
+	;	ADY - PIXEL ADJUSTMENT - Y COORDINATE
+	;	BY  - BOTTOM Y
+	;*********************************************************
+
+	PUTLAD	MACRO	  PX,PY,PJ,ADY,BY
+		DB 	2,PX,PY,PJ,ADY,BY
+	ENDM
+
+	;*********************************************************
+	;   MACROS TO BUILD SLIDE TABLE ENTRIES
+	;	PX  - X COORDINATE
+	;	PY  - Y COORDINATE
+	;	PJ  - NUMBER OF SLIDE SECTIONS
+	;	BX  - BOTTOM X
+	;	BY  - BOTTOM Y
+	;*********************************************************
+
+	PUTSLD	MACRO	  PX,PY,PJ,BX,BY	;SLIDE DOWN
+		DB	3,PX,PY,PJ,BX,BY
+	ENDM
+
+	PUTSLR	MACRO	  PX,PY,PJ,BX,BY	;SLIDE RIGHT
+		DB	4,PX,PY,PJ,BX,BY
+	ENDM
+
+	PUTSLL	MACRO	  PX,PY,PJ,BX,BY	;SLIDE LEFT
+		DB	5,PX,PY,PJ,BX,BY
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD RAMP TABLE ENTRY
+	;	PX  - X COORDINATE
+	;	PY  - Y COORDINATE
+	;	PJ  - NUMBER OF RAMP SECTIONS
+	;	PK  - RAMP DIRECTION
+	;		PK = 0  (RAMP UP)
+	;		PK = 1  (RAMP DOWN)
+	;*********************************************************
+
+	PUTRMÐ	MACRÏ	  PX,PY,PJ,PK
+		DB	6,PX,PY,PJ,PK
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD TREASURE TABLE ENTRY
+	;	PX     - X COORDINATE
+	;	PY     - Y COORDINATE
+	;	PICADD - ADDRESS OF PICTURE  (WORD)
+	;	EXD    - X DIMENSION FOR TSEZOT (ERASING OF PICTURE)
+	;	EYD    - Y DIMENSION FOR TSEZOT (ERASING OF PICTURE)
+	;	TX     - TOP X
+	;	TY     - TOP Y
+	;	BX     - BOTTOM X
+	;	BY     - BOTTOM Y
+	;	VAL    - POINTER TO TREASURE VALUE
+	;*********************************************************
+
+	PUTTSE	MACRO	  PX,PY,PICADD,EXD,EYD,TX,TY,BX,BY,VAL
+		DB	7,PX,PY
+		DW	PICADD
+		DB	EXD,EYD,TX,TY,BX,BY,VAL
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD MONSTER TABLE ENTRY
+	;	TY     - TOP Y
+	;	LX     - LEFT X
+	;	RX     - RIGHT X
+	;	PX     - PRESENT X
+	;	DIR    - MONSTER DIRECTION
+	;	INT    - MONSTER SPEED (INTERVAL)
+	;*********************************************************
+
+	MONENT	MACRO	  TY,LX,RX,PX,DIR,INT
+		DB 	8,TY,LX,RX,PX,DIR,INT
+	ENDM
+;
+	;*********************************************************
+	;   MACRO TO BUILD CHOP TABLE ENTRY
+	;	PX     - X COORDINATE
+	;	PY     - Y COORDINATE
+	;*********************************************************
+
+	CHOP	MACRO	  PX,PY
+		DB	9,PX,PY
+	ENDM
+
+
+	;*********************************************************
+	;   MACRO TO BUILD TRANSPORTER TABLE ENTRY
+	;	PX     - X COORDINATE
+	;	PY     - Y COORDINATE
+	;*********************************************************
+
+	PUTTRR	MACRO	   PX,PY,NUM
+	  	DB	10,PX,PY,NUM
+	ENDM
+
+
+	;*********************************************************
+	;   MACRO TO BUILD MOVING PLATFORM TABLE ENTRY
+	;	LX     - LEFT X
+	;	RX     - RIGHT X
+	;	PX     - PRESENT X
+	;	TY     - TOP Y
+	;	PATT   - PLATFORM PATTERN (SIZE)
+	;	SPEED  - PLATFORM SPEED
+	;	IDIR   - INITIAL DIRECTION
+	;*********************************************************
+
+	PUTMPT	MACRO	   LX,RX,PX,TY,PATT,SPEED,IDIR
+		DB	11,LX,RX,PX,TY,PATT,SPEED,IDIR
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD FIXED PLATFORM TABLE ENTRY
+	;	PX    - X COORDINATE
+	;	PY    - Y COORDINATE
+	;	PJ    - NUMBER OF SECTIONS
+	;*********************************************************
+
+	PUTPLT	MACRO	   PX,PY,PJ
+		DB	12,PX,PY,PJ
+	ENDM
+;
+	;*********************************************************
+	;   MACRO TO BUILD TRACKS TABLE ENTRY
+	;	PX    - X COORDINATE
+	;	PY    - Y COORDINATE
+	;	PJ    - NUMBER OF SECTIONS
+	;*********************************************************
+
+	PUTTRK	MACRO	   PX,PY,PJ
+		DB	13,PX,PY,PJ
+	ENDM
+
+	;**********************************************************
+	;   MACRO TO BUILD WALL TABLE ENTRY
+	;	PX    - TOP X
+	;	PY    - TOP Y
+	;	PBX   - BOTTOM X
+	;       PBY   - BOTTOM Y
+	;	PJ    - NUMBER OF SECTIONS
+	;	PTBLI - TABLE ENTRY INDICATOR
+	;***********************************************************
+
+	PUTWAL	MACRO	   PX,PY,PBX,PBY,PJ,PTBLI
+		DB	14,PX,PY,PBX,PBY,PJ,PTBLI
+	ENDM
+
+	;**********************************************************
+	;   MACRO TO BUILD ROOF TABLE ENTRY
+	;	PX    - TOP X
+	;	PY    - TOP Y
+	;	PBX   - BOTTOM X
+	;       PBY   - BOTTOM Y
+	;	PJ    - NUMBER OF SECTIONS
+	;	PTBLI - TABLE ENTRY INDICATOR
+	;***********************************************************
+
+	PUTROF	MACRO	   PX,PY,PBX,PBY,PJ,PTBLI
+		DB	15,PX,PY,PBX,PBY,PJ,PTBLI
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD SPECIAL EFFECTS TABLE ENTRY
+	;	PX  =  1  (RADIOACTIVE MARTINI)
+	;	    =  2  (RADIOACTIVE WASTE)
+	;	    =  3  (PLUNGERS)
+	;*********************************************************
+
+	PUTEFF	MACRO     PX
+		DB	16,PX
+	ENDM
+
+	;*********************************************************
+	;	MACRO TO BUILD CHARGE LETTERING TABLE ENTRY
+	;*********************************************************
+
+	PUTCHG	MACRO
+		DB	17
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD BOUNTY BOB, NUMBER OF CATWALKS,
+	;   AND TIMER TABLE ENTRIES
+	;	PX    - X COORDINATE
+	;	PY    - Y COORDINATE
+	;	PJ    - NUMBER OF CATWALKS
+	;	TIME  - TIMER VALUE
+	;*********************************************************
+
+	PUTBOB	MACRO	   PX,PY,CATS,TIME
+		DB	18,PX,PY,CATS,TIME
+	ENDM
+
+	;*********************************************************
+	;   MACRO TO BUILD TABLE END TABLE ENTRY
+	;*********************************************************
+
+	PUTEND	MACRO
+		DB	0
+	ENDM
+;
+;******************************************************************
+;		EXTERNAL NAMES FOR PATTERNS
+;******************************************************************
+
+	EXTRN	CATL,CATR,CATP,LADL,LADR,SLID,SLIR,SLIL,AX
+	EXTRN	PLAT,CUP,CANT,SHOV,TR2,JUG,OLAM,PLI,PIC
+	EXTRN	CAN,BUR,FUN,TRR,TONE,TTWO,TTRE,TFOR,DET,ANV
+	EXTRN	JACK,GOG,IRON,CAKE,FLO,JOY,DOL,WAT,CAND,HAM
+	EXTRN	BF,KEG1,KEG2,KEG3,MAR,JBTNT,JRTNT,JCHARG,TONS,WALL,ROOF
+
+
+;
+;*******************************************************************
+;	MACRO CALLS FOR EACH SCREEN TO BUILD SCREEN TABLES
+;******************************************************************
+
+;*******************************************************************
+;			SCREEN # 1
+;*******************************************************************
+
+SC1::
+	;**********************************************************
+	;	CATWALKS, LADDERS, AND RAMPS
+	;**********************************************************
+
+	PUTCAT 20,49,18,0		;CATWALK 1.1
+	PUTLAD 75,55,3,6,80		;LADDER 1.1
+	PUTLAD 201,55,3,6,76		;LADDER 1.2
+	  CHOP 201,75			;CHOP - LADDER 1.2
+	PUTRMP 26,72,18,1		;RAMP 1.1
+	PUTRMP 134,88,16,0		;RAMP 1.2
+	PUTLAD 126,94,3,5,114		;LADDER 1.3
+	  CHOP 126,114			;CHOP - LADDER 1.3
+	PUTCAT 23,130,1,0		;CATWALK 1.2
+	PUTRMP 50,127,14,0		;RAMP 1.3
+	PUTRMP 134,115,16,1		;RAMP 1.4
+	PUTLAD 87,127,3,6,147		;LADDER 1.4
+	  CHOP 87,147			;CHOP - LADDER 1.4
+	PUTLAD 189,131,4,6,160		;LADDER 1.5
+	  CHOP 189,159			;CHOP - LADDER 1.5
+	PUTCAT 8,147,9,0		;CATWALK 1.7
+	PUTLAD 60,153,3,6,180		;LADDER 1.6
+	PUTLAD 60,173,1,0,0		;EXTENSION - LADDER 1.6
+	PUTRMP 116,148,18,1		;RAMP 1.5
+	PUTRMP 26,183,4,0		;RAMP 1.6
+	PUTCAT 50,180,6,0		;CATWALK  1.8
+	PUTRMP 122,179,8,0		;RAMP 1.7
+	PUTCAT 170,172,6,1		;CATWALK 1.9
+	PUTLAD 174,178,1,6,190		;LADDER 1.7
+	PUTLAD 174,182,1,0,0		;EXTENSION LADDER 1.7
+
+	;***************************************************************
+	;		SETUP SCREEN #1 - TREASURES
+	;***************************************************************
+
+	PUTTSE 41,26,AX,2,2,44,26,54,41,18		;AX
+	PUTTSE 104,72,CUP,2,1,106,72,114,77,24		;CUP
+	PUTTSE 220,64,CANT,2,1,220,64,227,68,30		;CANTEEN
+	PUTTSE 224,90,SHOV,1,3,224,94,230,111,36	;SHOVEL
+	PUTTSE 23,108,JUG,2,2,23,111,29,120,42		;JUG
+	PUTTSE 200,148,TR2,3,1,205,148,218,151,36	;TR2 (???)
+
+
+	;****************************************************************
+	;	SETUP SCEEN #1 - MONSTERS
+	;****************************************************************
+
+	MONENT 38,29,105,41,1,1		;MONSTER 1.1
+	MONENT 38,117,165,153,0,2	;MONSTER 1.2
+	MONENT 136,38,111,41,1,1	;MONSTER 1.3
+	MONENT 179,8,198,180,0,1	;MONSTER 1.4
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 4,0,4,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 4,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	;****************************************************************
+	;       BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;****************************************************************
+
+	PUTBOB 10,189,175,030H
+	PUTEND 
+;
+;**********************************************************************
+;			SCREEN # 2
+;**********************************************************************
+
+SC2::
+	;**************************************************************
+	;	CATWALKS, LADDERS, AND RAMPS
+	;**************************************************************
+
+	PUTCAT 8,28,20,0		;CATWALK 2.1
+	PUTLAD 24,34,3,6,52		;LADDER 2.1
+	  CHOP 24,52			;CHOP - LADDER 2.1
+	PUTLAD 84,34,3,6,52		;LADDER 2.2
+	  CHOP 84,52			;CHOP - LADDER 2.2
+	PUTLAD 144,34,3,6,52		;LADDER 2.3
+	  CHOP 144,52			;CHOP -LADDER 2.3
+	PUTLAD 216,34,3,6,52		;LADDER 2.4
+	  CHOP 216,52			;CHOP - LADDER 2.4
+	PUTSLD 236,34,3,236,52		;SLIDE 2.1
+	  CHOP 236,52			;CHOP - SLIDE 2.1
+	PUTCAT 8,52,3,1			;CATWALK 2.2
+	PUTCAT 68,52,3,1		;CATWALK 2.3
+	PUTCAT 128,52,10,0		;CATWALK 2.4 
+	PUTLAD 12,58,6,6,102		;LADDER 2.5
+	  CHOP 12,102			;CHOP - LADDER 2.5
+	PUTSLL 170,58,10,108,104	;SLIDE 2.2
+	  CHOP 102,104			;CHOP - SLIDE 2.2
+	PUTSLL 224,58,5,200,80		;SLIDE 2.3
+	  CHOP 196,80			;CHOP - SLIDE 2.3
+	PUTCAT 200,80,1,0		;CATWALK 2.5 
+	PUTSLR 200,86,5,230,104		;SLIDE 2.4
+	  CHOP 230,104			;CHOP - SLIDE 2.4
+	  CHOP 234,106			;CHOP - SLIDE 2.4 SOME MORE
+	PUTCAT 8,102,4,0		;CATWALK 2.5
+	PUTCAT 72,104,5,0		;CATWALK 2.6
+	PUTCAT 152,104,8,0		;CATWALK 2.7
+	PUTLAD 30,108,7,6,158		;LADDER 2.6
+	  CHOP 30,158			;CHOP - LADDER 2.6
+	PUTSLR 78,110,10,152,156	;SLIDE 2.5
+	  CHOP 152,156			;CHOP - SLIDE 2.5
+	PUTLAD 192,110,6,6,156		;LADDER 2.7
+	  CHOP 192,156			;CHOP - LADDER 2.7
+	PUTSLD 230,110,6,230,156	;SLIDE 2.6
+	PUTCAT 30,158,4,1		;CATWALK 2.8
+	PUTCAT 98,156,12,1		;CATWALK 2.9
+	PUTLAD 114,162,3,6,190		;LADDER 2.8
+	PUTLAD 114,182,1,0,0		;EXTENSION - LADDER 2.8
+	PUTSLL 217,162,1,182,189	;SLIDE 2.7 
+	PUTSLL 212,165,5,0,0		;EXTENSION - SLIDE 2.7
+
+	;*******************************************************************
+	;		SETUP SCREEN #2 - TREASURES
+	;*******************************************************************
+	
+	PUTTSE 108,18,OLAM,2,1,108,18,119,23,18		;OIL LAMP
+	PUTTSE 230,8,PLI,2,2,230,8,236,19,24		;PLIERS
+	PUTTSE 96,35,PIC,3,2,100,35,115,50,24		;PICK
+	PUTTSE 187,40,CAN,2,1,188,40,199,47,24		;CANDLE
+	PUTTSE 48,88,BUR,2,1,48,88,59,93,30		;BURGER
+	PUTTSE 168,83,JUG,1,2,168,86,174,95,18		;JUG
+	PUTTSE 88,168,FUN,2,2,88,168,99,181,36		;FUNNEL
+
+	;*****************************************************************
+	;		SETUP SCREEN #2 - MONSTERS
+	;*****************************************************************
+
+	MONENT 17,38,93,44,1,2			;MONSTER 2.1
+	MONENT 17,140,188,176,0,1		;MONSTER 2.2
+	MONENT 69,196,204,200,0,2		;MONSTER 2.3
+	MONENT 179,48,78,57,1,1			;MONSTER 2.4
+	MONENT 179,128,236,206,0,2		;MONSTER 2.5
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 4,0,4,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 4,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	;****************************************************************
+	;	   BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;****************************************************************
+
+	PUTBOB 100,189,144,035H
+	PUTEND
+;
+;**********************************************************************
+;			SCREEN # 3
+;**********************************************************************	
+
+SC3::
+	;**************************************************************
+	;	  CATWALKS, LADDERS, AND SLIDES
+	;**************************************************************
+
+	PUTTRR 104,10,4				;TRANSPORTER #4
+
+	PUTCAT 20,49,18,0			;CATWALK 3.1
+	PUTLAD 60,55,3,6,75			;LADDER 3.1
+	  CHOP 60,75				;CHOP - LADDER 3.1
+	PUTCAT 14,75,5,0			;CATWALK 3.2
+	PUTCAT 182,77,5,0			;CATWALK 3.3
+	PUTLAD 36,81,6,6,128			;LADDER 3.2
+	  CHOP 36,128				;CHOP - LADDER 3.2	
+	PUTLAD 186,83,6,6,124			;LADDER 3.3
+	  CHOP 186,124				;CHOP - LADDER 3.3
+
+	PUTTRR 104,57,3				;TRANSPORTER #3
+
+	PUTCAT 90,96,6,0			;CATWALK 3.4
+	PUTCAT 155,124,6,1			;CATWALK 3.5
+	PUTLAD 207,130,4,6,158			;LADDER 3.4
+	  CHOP 207,158				;CHOP - LADDER 3.4
+	PUTCAT 26,128,5,1			;CATWALK 3.6
+	PUTLAD 78,134,4,6,161			;LADDER 3.5
+	  CHOP 78,161				;CHOP - LADDER 3.5
+
+	PUTTRR 104,104,2			;TRANSPORTER #2
+
+	PUTCAT 102,143,3,0			;CATWALK 3.7
+	PUTCAT 14,154,3,1			;CATWALK 3.8
+	PUTLAD 18,160,4,6,190			;LADDER 3.6 
+	PUTCAT 197,158,3,0			;CATWALK 3.9
+	PUTCAT 139,160,3,1			;CATWALK 3.10
+	PUTLAD 167,166,3,6,190			;LADDER 3.7
+	PUTCAT 62,161,3,0			;CATWALK 3.11
+
+	PUTTRR 104,151,1			;TRANSPORTER #1
+
+	;****************************************************************
+	;	SETUP SCREEN #3 - TREASURES
+	;****************************************************************
+
+	PUTTSE 55,32,DET,3,2,55,32,65,43,30		;DETONATOR
+	PUTTSE 14,57,PLI,3,2,14,57,20,68,24		;PLIERS
+	PUTTSE 218,59,JACK,2,2,218,59,230,73,24 	;JACK HAMMER
+	PUTTSE 152,64,ANV,2,2,152,64,167,73,30		;ANVIL
+	PUTTSE 200,108,GOG,2,1,200,108,210,111,18	;GOGGLES
+	PUTTSE 136,169,IRON,2,1,136,169,148,174,18	;IRON
+
+	;****************************************************************
+	;		SETUP SCREEN #3 - MONSTERS
+	;****************************************************************
+
+	MONENT 38,46,92,80,1,3		;MONSTER 3.1
+	MONENT 38,136,163,138,0,1	;MONSTER 3.2
+	MONENT 64,17,63,44,1,1		;MONSTER 3.3
+	MONENT 66,182,231,187,1,2	;MONSTER 3.4
+	MONENT 113,155,222,197,0,1	;MONSTER 3.5
+	MONENT 117,56,81,74,1,1		;MONSTER 3.6
+	MONENT 179,62,236,197,1,1	;MONSTER 3.7
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 10,0,10,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 255,0,255,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 10,190,255,190,0,1	;BOTTOM OF SCREEN
+
+	;****************************************************************
+	;	  BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;****************************************************************
+
+	PUTBOB 152,189,124,040H
+	PUTEND
+;
+;*********************************************************************
+;			SCREEN # 4
+;*********************************************************************
+
+SC4::
+	;*************************************************************
+	;		CATWALKS AND LADDERS
+	;*************************************************************
+
+	PUTCAT 26,28,17,0			;CATWALKS 4.1
+	PUTLAD 42,34,4,6,60			;LADDER 4.1
+	  CHOP 42,60				;CHOP - LADDER 4.11
+	PUTLAD 210,34,4,6,60			;LADDER 4.2
+	  CHOP 210,60				;CHOP - LADDER 4.2
+	PUTCAT 125,50,1,0			;CATWALK 4.2
+	PUTCAT 8,60,5,0				;CATWALK 4.3
+	PUTCAT 188,60,3,1			;CATWALK 4.4
+	PUTCAT 81,61,2,0			;CATWALK 4.5
+	PUTCAT 157,64,2,0			;CATWALK 4.6
+	PUTCAT 135,76,2,1			;CATWALK 4.7
+
+	PUTCAÔ 8,80,3,±				;CATWALË 4.8
+	PUTLAD 12,86,13,6,190			;LADDER 4.3
+;	PUTLAD 12,182,1,0,0			;EXTENSION - LADDER 4.3
+
+	PUTCAT 175,81,2,0			;CATWALK 4.9
+	PUTCAT 102,89,2,1			;CATWALK 4.10
+	PUTCAT 206,90,2,0			;CATWALK 4.11
+	PUTCAT 88,102,2,0			;CATWALK 4.12
+	PUTCAT 188,102,2,0			;CATWALK 4.13
+	PUTCAT 32,105,1,1			;CATWALK 4.14
+	PUTCAT 157,114,2,0			;CATWALK 4.15
+	PUTCAT 67,115,2,0			;CATWALK 4.16
+	PUTCAT 191,123,1,1			;CATWALK 4.17
+	PUTCAT 87,129,2,1			;CATWALK 4.18
+	PUTCAT 26,132,1,0			;CATWALK 4.28
+	PUTCAT 128,133,2,0			;CATWALK 4.19
+	PUTCAT 170,137,1,1			;CATWALK 4.20
+	PUTCAT 196,144,2,0			;CATWALK 4.21
+	PUTCAT 81,146,2,1			;CATWALK 4.22
+	PUTCAT 204,156,2,1			;CATWALK 4.23
+	PUTCAT 38,158,2,1			;CATWALK 4.24
+	PUTCAT 164,169,2,0			;CATWALK 4.25
+	PUTCAT 84,172,3,0			;CATWALK 4.26
+	PUTCAT 134,179,1,1			;CATWALK 4.27
+
+	;*************************************************************
+	;		SETUP SCREEN #4 - TREASURES
+	;*************************************************************
+
+	PUTTSE 84,10,CAN,3,1,85,10,96,17,24		;CANDLE
+	PUTTSE 121,36,BUR,3,1,121,36,132,41,30		;BURGER
+	PUTTSE 133,58,MAR,2,2,133,58,141,68,24		;MARTINI
+	PUTTSE 224,70,CAKE,2,2,224,70,235,81,30		;CAKE
+;	PUTTSE 31,86,CANT,2,1,31,86,35,90,18		;CANTEEN
+	PUTTSE 31,92,CANT,2,1,31,92,35,96,18		;CANTEEN
+	PUTTSE 126,97,FLO,3,2,126,97,139,109,30		;FLOWER POT
+	PUTTSE 224,138,JOY,2,1,224,138,234,145,42	;JOYSTICK
+	PUTTSE 56,168,DOL,2,2,57,168,72,178,42		;DOLLAR
+
+	;*************************************************************
+	;		SETUP SCREEN #4 - MONSTERS
+	;*************************************************************
+
+	MONENT 17,26,117,38,1,1		;MONSTER 4.1
+	MONENT 17,128,219,219,0,1	;MONSTER 4.2
+	MONENT 70,175,188,175,1,1	;MONSTER 4.3
+	MONENT 78,102,121,114,1,2	;MONSTER 4.4
+	MONENT 133,196,209,196,1,1	;MONSTER 4.5
+	MONENT 161,84,109,90,1,2	;MONSTER 4.6
+	MONENT 179,8,237,237,1,1	;MONSTER 4.7
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 4,0,4,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 4,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	;**************************************************************
+	;	   BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;**************************************************************
+
+	PUTBOB 30,189,154,045H
+	PUTEND
+;
+;**********************************************************************
+;                  SCREEN # 5
+;**********************************************************************
+
+SC5::
+	;**************************************************************
+	;           SETUP CATWALKS
+	;**************************************************************
+
+	PUTCAT 22,28,18,0			;CATWALK 5.1
+	PUTCAT 238,39,1,0			;CATWALK 5.2
+	PUTCAT 22,40,1,0			;CATWALK 5.3
+
+	PUTSLR 103,34,3,124,48			;SLIDE 5.1
+	PUTSLD 124,34,2,124,48			;SLIDE 5.2
+	PUTSLL 133,34,3,124,48			;SLIDE 5.3
+	  CHOP 124,48				;CHOP END OF SLIDES
+
+	PUTSLR 75,34,7,124,66			;SLIDE 5.4
+	  CHOP 124,48
+	PUTCAT 124,48,1,0			;CATWALK 5.4
+	  CHOP 136,48				;GET RID OF COLOR ??
+
+	PUTSLD 124,54,2,124,66			;SLIDE 5.5
+;	PUTSLL 161,34,6,124,66			;SLIDE 5.6
+	PUTSLL 162,34,6,124,66			;SLIDE 5.6
+	  CHOP 124,66				;CHOP END OF SLIDES
+
+	PUTCAT 124,66,1,0			;CATWALK 5.8
+	  
+	PUTSLR 39,34,11,124,88			;SLIDE 5.7
+	PUTSLD 124,72,2,124,88			;SLIDE 5.8
+	PUTSLL 196,34,11,124,88			;SLIDE 5.9
+	  CHOP 124,88				;CHOP END OF SLIDES
+
+	PUTCAT 22,52,1,0			;CATWALK 5.5
+	PUTCAT 224,61,1,0			;CATWALK 5.6
+	PUTCAT 22,64,1,0			;CATWALK 5.7
+	PUTCAT 222,76,1,0			;CATWALK 5.9
+	PUTCAT 22,77,1,0			;CATWALK 5.10
+	PUTCAT 60,84,1,0			;CATWALK 5.11
+	PUTCAT 18,87,2,0			;CATWALK 5.12
+	PUTCAT 222,87,1,1			;CATWALK 5.13
+	PUTCAT 118,88,2,0			;CATWALK 5.14
+	PUTCAT 65,97,1,1			;CATWALK 5.15
+	PUTCAT 224,103,1,0			;CATWALK 5.16
+	PUTCAT 95,106,1,0			;CATWALK 5.17
+	PUTCAT 43,108,1,1			;CATWALK 5.18
+	PUTCAT 204,114,1,0			;CATWALK 5.19
+	PUTCAT 19,119,1,1			;CATWALK 5.20
+	PUTCAT 82,123,1,1			;CATWALK 5.21
+	PUTCAT 125,123,1,1			;CATWALK 5.22
+	PUTCAT 218,125,1,0			;CATWALK 5.23
+	PUTCAT 19,132,1,0			;CATWALK 5.24
+	PUTCAT 60,135,1,1			;CATWALK 5.25
+	PUTCAT 129,137,1,0			;CATWALK 5.26
+	PUTCAT 230,137,1,0			;CATWALK 5.27
+	PUTCAT 35,148,1,1			;CATWALK 5.28
+	PUTCAT 129,149,1,0			;CATWALK 5.29
+	PUTCAT 212,151,1,1			;CATWALK 5.30
+	PUTCAT 161,154,1,0			;CATWALK 5.31
+	PUTCAT 65,159,2,0			;CATWALK 5.32
+	PUTCAT 194,161,1,0			;CATWALK 5.33
+	PUTCAT 103,162,1,0			;CATWALK 5.34
+	PUTCAT 226,166,1,0			;CATWALK 5.35
+	PUTCAT 33,169,1,0			;CATWALK 5.36
+	PUTCAT 123,171,1,1			;CATWALK 5.37
+	PUTCAT 67,173,1,0			;CATWALK 5.38
+	PUTCAT 210,177,1,0			;CATWALK 5.39
+	PUTCAT 95,178,1,1			;CATWALK 5.40
+
+	;*****************************************************************
+	;           SETUP SCREEN #5 - TREASURES
+	;*****************************************************************
+
+	PUTTSE 77,9,PIC,3,2,81,9,96,24,24	;PICK
+	PUTTSE 120,9,DOL,2,2,120,9,135,19,42	;DOLLAR
+	PUTTSE 167,9,HAM,2,2,167,9,176,19,30	;HAMMER
+	PUTTSE 44,63,JOY,2,1,44,63,54,70,42	;JOYSTICK
+	PUTTSE 191,61,CAND,3,2,191,61,200,76,42	;CANDELLABRA
+	PUTTSE 81,139,WAT,3,1,81,139,99,146,24	;WATER CAN
+	PUTTSE 16,160,MAR,2,2,16,160,24,170,24	;MARTINI
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 4,0,4,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 4,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	;******************************************************************
+	;		MOVING PLATFORMS
+	;******************************************************************
+
+	PUTMPT 210,229,225,48,40H,1,01H		;PLATFORM #1
+	PUTMPT 144,204,200,96,3CH,1,00H		;PLATFORM #2
+	PUTMPT 145,190,155,174,3CH,2,00H	;PLATFORM #3
+
+	;******************************************************************
+	;        SETUP SCREEN #5 - MONSTERS
+	;******************************************************************
+
+	MONENT 17,22,120,22,1,1			;MONSTER #1
+	MONENT 17,130,235,235,0,1		;MONSTER #2
+	MONENT 76,18,29,18,1,2			;MONSTER #3
+	MONENT 179,33,244,50,1,2		;MONSTER #4
+;	MONENT 179,131,244,244,0,1		;MONSTER #5
+
+	;*****************************************************************
+	;	SETUP SPECIAL EFFECTS - RADIOACTIVE MARTINI
+	;*****************************************************************
+
+	PUTEFF 1				;MARTINI
+
+	;******************************************************************
+	;	     BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;******************************************************************
+
+	PUTBOB 35,189,131,050H
+	PUTEND
+;
+;**********************************************************************
+;                  SCREEN # 6
+;**********************************************************************
+
+SC6::
+	;**************************************************************
+	;           SETUP CATWALKS, LADDERS
+	;**************************************************************
+
+	PUTCAT 14,30,3,0			;CATWALK 6.1
+	PUTLAD 30,36,5,6,72			;LADDER 6.1
+	  CHOP 28,72				;CHOP OFF LADDER
+	PUTCAT 103,30,2,1			;CATWALK 6.2
+	PUTCAT 167,30,2,0			;CATWALK 6.3
+	PUTCAT 213,30,3,0			;CATWALK 6.4
+	PUTCAT 134,38,1,00			;CATWALK 6.5
+	PUTCAT 218,46,2,1			;CATWALK 6.6
+	PUTLAD 220,52,9,6,120			;LADDER 6.2
+	  CHOP 216,120				;CHOP OFF LADDER
+	PUTCAT 164,52,1,1			;CATWALK 6.7
+	PUTCAT 98,58,1,1			;CATWALK 6.8
+	PUTCAT 139,64,1,0			;CATWALK 6.9
+	PUTCAT 26,72,2,0			;CATWALK 6.10
+	PUTCAT 175,78,1,1			;CATWALK 6.11
+	PUTCAT 136,79,1,0			;CATWALK 6.12
+	PUTCAT 132,92,1,0			;CATWALK 6.13	
+	PUTCAT 190,94,1,0			;CATWALK 6.14
+	PUTCAT 117,107,2,0			;CATWALK 6.15
+	PUTCAT 164,112,1,1			;CATWALK 6.16
+	PUTCAT 206,120,2,1			;CATWALK 6.17
+	PUTCAT 88,123,1,1			;CATWALK 6.18
+	PUTCAT 58,137,1,0			;CATWALK 6.19
+	PUTCAT 136,140,1,0			;CATWALK 6.20
+	PUTCAT 171,140,1,0			;CATWALK 6.21
+
+;	PUTCAT 34,152,1,0			;CATWALK 6.22
+	PUTCAT 28,152,1,1			;CATWALK 6.22
+
+	PUTCAT 210,152,1,1			;CATWALK 6.23
+	PUTCAT 8,164,1,0			;CATWALK 6.24
+	PUTCAT 234,164,1,0			;CATWALK 6.25
+	PUTCAT 8,180,1,0			;CATWALK 6.26
+	PUTCAT 234,180,1,0			;CATWALK 6.27
+
+	;*****************************************************************
+	;           SETUP SCREEN #6 - TREASURES
+	;*****************************************************************
+
+	PUTTSE 192,8,IRON,2,2,192,8,204,13,18		;IRON
+	PUTTSE 32,10,MAR,2,2,32,10,40,20,24		;MARTINI
+	PUTTSE 96,37,WAT,3,1,96,37,114,44,24		;WATER CAN
+	PUTTSE 50,44,JUG,2,2,50,44,56,56,18		;JUG
+	PUTTSE 182,124,CUP,2,1,182,124,192,129,18	;CUP
+	PUTTSE 33,128,CAN,2,1,33,128,45,135,24		;CANDLE
+	PUTTSE 212,134,BUR,2,1,212,134,223,139,30	;BURGER
+
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 4,0,4,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 250,0,250,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 4,190,250,190,0,1	;BOTTOM OF SCREEN
+
+	PUTWAL 37,160,40,190,0,1	;RADIOACTIVE WALL - LEFT
+	PUTWAL 216,160,219,190,0,1	;RADIOACTIVE WALL - RIGHT
+
+	;******************************************************************
+	;		MOVING PLATFORMS
+	;******************************************************************
+
+	PUTMPT 50,210,52,86,44H,1,00H		;PLATFORM #1
+
+	;******************************************************************
+	;        SETUP SCREEN #6 - MONSTERS
+	;******************************************************************
+
+	MONENT 19,14,40,24,1,2				;MONSTER #1
+	MONENT 19,213,239,249,0,1			;MONSTER #2
+	MONENT 112,88,100,88,1,2			;MONSTER #3
+	MONENT 153,230,241,234,1,2			;MONSTER #4
+
+	;*****************************************************************
+	;	SETUP SPECIAL EFFECTS - RADIOACTIVE WASTE
+	;*****************************************************************
+
+	PUTEFF 2			;RADIOACTIVE WASTE
+
+	;******************************************************************
+	;	     BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;******************************************************************
+
+	PUTBOB 10,189,84,055H
+	PUTEND
+;
+;**********************************************************************
+;                  SCREEN # 7
+;**********************************************************************
+
+SC7::
+	;**************************************************************
+	;           SETUP CATWALKS
+	;**************************************************************
+
+	PUTTRR 24,10,4				;TRANSPORTER #4
+	PUTCAT 196,30,4,1			;CATWALK 7.1
+;	PUTSLL 200,36,9,148,80			;SLIDE 7.1
+	PUTSLL 203,36,9,148,80			;SLIDE 7.1
+	    CHOP 148,80				;CHOP END OF SLIDE 7.1
+	PUTSLR 212,36,3,232,50			;SLIDE 7.2
+	    CHOP 232,50				;CHOP EXTRA PIXEL
+	PUTCAT 19,49,3,1			;CATWALK 7.2 	[TRR 4]
+
+;***	PUTSLR 40,55,8,108,94			;SLIDE 7.4
+	PUTSLR 46,55,8,108,94			;SLIDE 7.4
+
+	PUTTRR 24,57,3				;TRANSPORTER #3
+
+	PUTTRR 24,104,2				;TRANSPORTER #2
+
+	PUTTRR 24,151,1				;TRANSPORTER #1
+
+	PUTCAT 128,50,2,1			;CATWALK 7.3
+	PUTCAT 232,50,1,0			;CATWALK 7.4
+	PUTSLD 232,56,4,232,88			;SLIDE 7.3
+	PUTCAT 115,65,1,0			;CATWALK 7.5
+	PUTCAT 184,69,1,0			;CATWALK 7.6
+	PUTCAT 203,78,1,0			;CATWALK 7.7
+	PUTCAT 140,80,2,0			;CATWALK 7.8
+	PUTSLR 148,86,10,221,131		;SLIDE 7.5
+	  CHOP 216,131				;CHOP - SLIDE 7.5
+	PUTCAT 232,88,1,0			;CATWALK 7.9
+	PUTSLL 220,94,7,181,126			;SLIDE 7.6
+	  CHOP 168,126				;CHOP - SLIDE 7.6
+	PUTCAT 203,93,1,0			;CATWALK 7.10
+	PUTCAT 94,94,2,1			;CATWALK 7.11	
+
+;***	PUTSLR 106,100,9,166,140		;SLIDE 7.7
+;***	  CHOP 160,140				;CHOP - SLIDE 7.7
+	PUTSLR 108,100,9,168,140		;SLIDE 7.7
+	  CHOP 170,140				;CHOP - SLIDE 7.7
+
+	PUTCAT 16,96,3,1			;CATWALK 7.12	[TRR 3]
+	PUTCAT 224,108,1,0			;CATWALK 7.13
+	PUTCAT 237,116,1,0			;CATWALK 7.14
+	PUTCAT 176,126,2,0			;CATWALK 7.15
+	PUTSLR 181,132,7,231,165		;SLIDE 7.8
+	  CHOP 224,165				;CHOP - SLIDE 7.8
+	PUTCAT 221,131,2,0			;CATWALK 7.16
+
+	PUTCAT 164,140,2,0			;CATWALK 7.17
+
+	PUTCAT 96,142,1,1			;CATWALK 7.18
+	PUTCAT 21,143,3,0			;CATWALK 7.19	[TRR 2]
+	PUTRMP 127,148,3,1			;RAMP 7.1
+	PUTCAT 225,165,2,0			;CATWALK 7.20
+	PUTSLD 231,171,2,231,189		;SLIDE 7.9
+	    PUTSLD 231,182,1,0,0		; END OF SLIDE 7.9
+	PUTRMP 127,167,3,0			;RAMP 7.1
+	PUTCAT 186,168,1,1			;CATWALK 7.21
+	PUTCAT 103,172,1,0			;CATWALK 7.22
+
+	;*****************************************************************
+	;           SETUP SCREEN #7 - TREASURES
+	;*****************************************************************
+
+;	PUTTSE 144,10,DOL,2,2,144,10,159,20,48		;BIG FIVE [DOLLAR]
+	PUTTSE 144,8,BF,2,2,144,8,159,23,48		;BIG FIVE [LEO.JF.PAT]
+	PUTTSE 96,61,ANV,2,2,96,61,111,70,66		;ANVIL
+	PUTTSE 10,70,PLI,2,2,10,70,16,81,60		;PLIERS
+	PUTTSE 167,110,GOG,2,1,167,110,177,113,18	;GOGGLES
+	PUTTSE 68,120,JACK,2,2,68,120,80,134,24		;JACK HAMMER
+	PUTTSE 152,150,IRON,2,1,152,150,164,155,18	;IRON
+	PUTTSE 208,160,DET,2,2,208,160,218,171,66	;DETONATOR
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 12,0,12,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 12,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	;******************************************************************
+	;		MOVING PLATFORMS
+	;******************************************************************
+
+	PUTMPT 58,176,60,38,44H,2,01H			;PLATFORM #1
+	PUTMPT 58,88,60,102,44H,1,01H			;PLATFORM #2
+	PUTMPT 58,88,60,150,44H,2,01H			;PLATFORM #3
+	PUTMPT 62,166,65,181,44H,1,01H			;PLATFORM #4
+
+	;******************************************************************
+	;        SETUP SCREEN #7 - MONSTERS
+	;******************************************************************
+
+	MONENT 39,128,148,128,1,1		;MONSTER #1
+	MONENT 132,21,47,53,0,2			;MONSTER #2
+;	MONENT 179,60,130,80,1,1		;MONSTER #3
+	MONENT 179,23,175,60,1,2		;MONSTER #4
+
+	;*****************************************************************
+	;       BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;*****************************************************************
+
+	PUTBOB	12,189,89,060H
+	PUTEND					;END OF SCREEN #7
+;
+;**********************************************************************
+;                  SCREEN # 8
+;**********************************************************************
+
+SC8::
+	;**************************************************************
+	;         SCREEN #8 - CATWALKS,SLIDES AND LADDERS
+	;**************************************************************
+
+	PUTCAT 10,30,19,1			;CATWALK 8.1
+	PUTLAD 22,36,3,6,60			;LADDER 8.1
+	  CHOP 22,60				;CHOP - LADDER 8.1
+	PUTLAD 98,36,3,6,60			;LADDER 8.2
+	  CHOP 146,60				;CHOP - LADDER 8.2
+	PUTSLD 148,36,3,148,60			;SLIDE 8.1
+	  CHOP 94,60				;CHOP - SLIDE 8.1
+
+	PUTLAÄ 232,36,1,6,42			;LADDEÒ 8.3
+	PUTLAÄ 232,46,6,0,8¸			;LADDEÒ 8.4
+	  CHOP 232,88				;CHOP - LADDER 8.4
+
+	PUTCAT 6,60,2,1				;CATWALK 8.2
+	PUTSLD 15,66,4,15,90			;SLIDE 8.2
+	  CHOP 10,90				;CHOP - SLIDE 8.2
+	PUTCAT 94,60,7,1			;CATWALK 8.3
+
+	PUTLAD 122,66,4,6,90			;HANGING LADDER
+	  CHOP 122,90				;CHOP HANGING LADDER
+
+;********** FUNNY SLIDES **************
+	PUTSLR 172,66,5,204,88			;SLIDE 8.3
+	  CHOP 200,88				;CHOP - SLIDE 8.3
+	PUTCAT 195,88,1,0			;CATWALK 8.5
+	PUTCAT 214,88,2,1			;CATWALK 8.6
+	PUTSLD 204,94,2,204,107			;SLIDE 8.4
+	  CHOP 204,107				;CHOP - SLIDE 8.4
+	PUTCAT 200,107,1,1			;CATWALK 8.7
+;**************************************
+
+	PUTCAT 10,90,6,1			;CATWALK 8.4
+	PUTLAÄ 224,94,9,6,16°			;LADDEÒ 8.5
+	  CHOÐ 224,16°				;CHOÐ - LADDEÒ 8.5
+	PUTCAT 10,120,6,1			;CATWALK 8.8
+	PUTSLD 16,126,6,16,166			;SLIDE 8.5
+	  CHOP 16,166				;CHOP - SLIDE 8.5
+	PUTCAT 200,160,4,0			;CATWALK 8.9
+	PUTCAT 8,166,5,0			;CATWALK 8.10
+
+	;*****************************************************************
+	;           SETUP SCREEN #8 - TREASURES
+	;*****************************************************************
+
+	PUTTSE 72,8,CAN,2,1,72,8,80,15,24	;CANTEEN
+	PUTTSE 176,8,MAR,2,2,176,8,184,18,24	;TABLE ENTRY
+	PUTTSE 214,52,PLI,2,2,214,52,220,63,24	;TABLE ENTRY
+	PUTTSE 80,67,FLO,2,2,80,67,93,79,30	;FLOWER POT
+	PUTTSE 88,95,OLAM,2,2,88,95,99,101,18	;TABLE ENTRY
+	PUTTSE 6,97,JOY,3,2,6,97,16,104,42	;JOYSTICK
+
+	;***************************************************************
+	;	BOTTOM PLATFORM / SCREEN BOUNDARIES / TRACKS
+	;***************************************************************
+
+	PUTMPT 8,238,100,173,0FFH,3,00H	;RADIOACTIVE PLATFORM 
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 4,0,4,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 4,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	PUTTRK 82,182,17	
+
+	;******************************************************************
+	;        SETUP SCREEN #8 - MONSTERS
+	;******************************************************************
+
+	MONENT 19,16,152,26,1,2		;MONSTER #1
+	MONENT 19,130,230,200,0,3	;MONSTER #2
+	MONENT 79,15,74,56,1,1		;MONSTER #3
+	MONENT 109,20,72,64,1,1		;MONSTER #4
+	MONENT 155,20,58,20,1,4		;MONSTER #5
+
+	;*****************************************************************
+	;       BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;*****************************************************************
+
+	PUTEFF 4				;LIFT
+
+	PUTBOB 210,160,113,045H
+	PUTEND
+;
+;**********************************************************************
+;                  SCREEN # 9
+;**********************************************************************
+
+SC9::
+
+	;****************************************************************
+	;	SETUP SPECIAL EFFECTS - PLUNGERS / PLUNGER SHACK
+	;****************************************************************
+
+	PUTEFF 3			;PLUNGERS
+
+	PUTWAL 73,155,0,0,4,0		;SHACK - LEFT WALL
+	PUTWAL 73,182,0,0,1,0		;SHACK - LEFT WALL EXTENSION
+	PUTWAL 197,155,0,0,4,0		;SHACK - RIGHT WALL
+	PUTWAL 197,182,0,0,1,0		;SHACK - RIGHT WALL EXTENSION
+	PUTROF 73,155,201,157,15,1	;SHACK - ROOF
+	PUTROF 192,155,0,0,1,0		;SHACK - ROOF EXTENSION
+
+	;**************************************************************
+	;         SCREEN #9 - CATWALKS,SLIDES AND LADDERS
+	;**************************************************************
+
+	PUTCAT 10,26,3,1			;CATWALK 9.1
+
+;	PUTSLD 56,32,3,56,56			;SLIDE 9.1
+;	PUTSLD 56,56,3,56,80			;SLIDE 9.2
+;	PUTSLD 56,80,3,56,104			;SLIDE 9.3
+;	PUTSLD 56,104,3,56,128			;SLIDE 9.4
+;	PUTSLD 56,128,3,56,152			;SLIDE 9.5
+;	PUTSLD 56,152,4,56,190			;SLIDE 9.6
+;	PUTSLD 56,182,1,0,0			;EXTENSION - SLIDE 9.6
+
+;	PUTSLD 56,32,3,56,190			;SLIDE 9.1
+;	PUTSLD 56,56,3,56,190			;SLIDE 9.2
+;	PUTSLD 56,80,3,56,190			;SLIDE 9.3
+;	PUTSLD 56,104,3,56,190			;SLIDE 9.4
+;	PUTSLD 56,128,3,56,190			;SLIDE 9.5
+;	PUTSLD 56,152,4,56,190			;SLIDE 9.6
+;	PUTSLD 56,182,1,0,0			;EXTENSION - SLIDE 9.6
+
+; TO LINE UP WITH MOVING PLATFORMS
+
+	PUTSLD 56,33,1,0,0			;EXTENSION TO 9.1
+	PUTSLD 56,39,3,56,190			;SLIDE 9.1
+	PUTSLD 56,63,3,56,190			;SLIDE 9.2
+	PUTSLD 56,87,3,56,190			;SLIDE 9.3
+;	PUTSLD 56,111,1,0,0			;EXTENSION TO SLIDE 9.3 LB
+	PUTSLD 56,111,3,56,190			;SLIDE 9.4
+	PUTSLD 56,135,3,56,190			;SLIDE 9.5
+	PUTSLÄ 56,159,4,56,19°			;SLIDÅ 9.6
+	PUTSLD 56,183,1,0,0			;EXTENSION - SLIDE 9.6
+
+	PUTCAT 208,26,3,0			;CATWALK 9.2
+	PUTLAD 229,32,3,6,50			;LADDER 9.1
+	  CHOP 229,50				;CHOP - LADDER 9.1
+	PUTCAT 10,50,3,1			;CATWALK 9.3
+	PUTCAT 204,50,3,0			;CATWALK 9.4
+	PUTLAD 220,56,3,6,74			;LADDER 9.2
+	  CHOP 220,74				;CHOP - LADDER 9.2
+	PUTCAT 10,74,3,1			;CATWALK 9.5
+	PUTCAT 206,74,2,1			;CATWALK 9.6
+	PUTLAD 216,80,3,6,98			;LADDER 9.3
+	  CHOP 216,98				;CHOP - LADDER 9.3
+	PUTCAT 10,98,3,1			;CATWALK 9.7
+	PUTCAT 204,98,2,1			;CATWALK 9.8
+	PUTLAD 220,104,3,6,122			;LADDER 9.4
+	  CHOP 220,122				;CHOP - LADDER 9.4
+	PUTCAT 10,122,3,1			;CATWALK 9.9
+	PUTCAT 208,122,3,0			;CATWALK 9.10
+	PUTLAD 229,128,3,6,146			;LADDER 9.5
+	  CHOP 229,146				;CHOP - LADDER 9.5
+	PUTCAT 10,146,3,1			;CATWALK 9.11
+	PUTCAT 208,146,3,1			;CATWALK 9.12
+	PUTLAD 232,152,5,6,190			;LADDER 9.6
+;	PUTLAD 232,183,1,0,0			;EXTENSION - LADDER 9.6
+
+	;*****************************************************************
+	;           SETUP SCREEN #9 - TREASURES
+	;*****************************************************************
+
+	PUTTSE 72,16,CUP,2,1,72,16,85,31,18		;CUP
+	PUTTSE 76,38,FUN,2,2,76,38,87,52,36		;FUNNEL
+	PUTTSE 72,60,PIC,3,2,76,60,91,75,24		;PICK
+	PUTTSE 72,84,WAT,3,1,72,84,90,91,24		;WATER CAN
+	PUTTSE 76,112,BUR,2,1,76,112,87,117,30		;BURGER
+	PUTTSE 78,132,CANT,2,1,78,132,85,136,18		;CANTEEN
+	PUTTSE 34,162,PLI,3,3,34,162,40,173,24		;PLIERS
+	PUTTSE 208,168,IRON,2,2,208,168,220,173,18	;IRON
+
+	;***************************************************************
+	;		BOTTOM PLATFORM / SCREEN BOUNDARIES 
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 6,0,6,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 6,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	;******************************************************************
+	;		MOVING PLATFORMS
+	;******************************************************************
+
+;	PUTMPT 52,205,204,32,44H,2,0F0H		;PLATFORM #1
+;	PUTMPT 52,201,200,56,44H,2,0F0H		;PLATFORM #2
+;	PUTMPT 52,203,202,80,44H,2,0F0H		;PLATFORM #3
+;	PUTMPT 52,201,200,104,44H,2,0F0H	;PLATFORM #4
+;	PUTMPT 52,205,204,128,44H,2,0F0H		;PLATFORM #5
+;	PUTMPT 52,205,204,152,44H,2,0F0H		;PLATFORM #6
+
+;	********** MOVE LEFT 3 PIXELS ************************
+
+	PUTMPT 52,202,201,32,44H,2,0F0H		;PLATFORM #1
+	PUTMPT 52,198,197,56,44H,2,0F0H		;PLATFORM #2
+	PUTMPT 52,200,199,80,44H,2,0F0H		;PLATFORM #3
+	PUTMPT 52,198,197,104,44H,2,0F0H	;PLATFORM #4
+	PUTMPT 52,202,201,128,44H,2,0F0H		;PLATFORM #5
+	PUTMPT 52,202,201,152,44H,2,0F0H		;PLATFORM #6
+
+	;******************************************************************
+	;        SETUP SCREEN #9 - MONSTERS
+	;******************************************************************
+
+	MONENT 15,16,40,16,1,2		;MONSTER #1
+	MONENT 39,16,40,40,0,2		;MONSTER #2
+	MONENT 63,16,40,16,1,2		;MONSTER #3
+	MONENT 87,16,40,40,0,2		;MONSTER #4
+	MONENT 111,16,40,16,1,2		;MONSTER #5
+	MONENT 135,16,40,40,0,2		;MONSTER #6
+	MONENT 179,16,40,16,0,1		;MONSTER #7
+	MONENT 179,76,220,220,1,1	;MONSTER #8
+
+	;*****************************************************************
+	;        BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;*****************************************************************
+
+	PUTBOB 217,26,77,065H
+	PUTEND
+;
+;**********************************************************************
+;                  SCREEN # 10
+;**********************************************************************
+
+SC10::
+
+	;***************************************************************
+	;		T.N.T. SHACK / CHARGE LETTERING
+	;***************************************************************
+
+	PUTWAL 13,100,15,189,11,1		;LEFT WALL
+	PUTWAL 13,182,0,0,1,0			;LEFT WALL EXTENSION
+;	PUTWAL 88,100,88,171,9,1		;RIGHT WALL
+	PUTWAL 88,100,90,163,8,1		;RIGHT WALL
+	PUTROF 16,100,90,102,9,0		;ROOF
+	
+	PUTWAL 24,87,26,99,2,0			;TOP LEFT WALL
+	PUTWAL 77,87,79,99,2,0			;TOP RIGHT WALL
+	PUTROF 24,87,79,89,7,0			;TOP ROOF
+
+	PUTCHG					;CHARGE LETTERING
+
+	;**************************************************************
+	;         SCREEN #10 - CATWALKS,SLIDES AND LADDERS
+	;**************************************************************
+
+	PUTCAT 10,34,10,1			;CATWALK 10.1
+	PUTSLR 40,40,8,96,76			;SLIDE 10.1
+	  CHOP 96,76				;CHOP - SLIDE 10.1
+	PUTCAT 172,34,6,1			;CATWALK 10.2
+	PUTSLD 220,40,5,220,76			;SLIDE 10.2
+	  CHOP 220,76				;CHOP - SLIDE 10.2
+	PUTCAT 10,76,10,1			;CATWALK 10.3
+	PUTCAT 172,76,6,1			;CATWALK 10.4
+	PUTSLD 96,82,5,96,118			;SLIDE 10.3
+	  CHOP 96,118				;CHOP - SLIDE 10.3
+	PUTCAT 96,118,3,1			;CATWALK 10.5
+	PUTSLD 96,124,8,96,190			;SLIDE 10.4
+	PUTSLD 96,182,1,0,0			;EXTENSION - SLIDE 10.4
+	PUTSLD 220,82,5,220,118			;SLIDE 10.5
+	  CHOP 220,118				;CHOP - SLIDE 10.5
+	PUTCAT 172,118,6,1			;CATWALK 10.6
+	PUTSLD 220,124,3,220,142		;SLIDE 10.6
+	  CHOP 220,142				;CHOP - SLIDE 10.6
+	PUTCAT 19,120,5,0			;CATWALK 10.7
+	PUTCAT 19,146,5,0			;CATWALK 10.9
+
+	PUTLAD 220,144,6,2,190			;LADDER 10.1
+	    CHOP 220,140			;CHOP OFF TOP OF LADDER
+	    PUTSLD 220,134,1,0,0		;PUT BACK PIECE OF SLIDE
+	PUTCAT 192,142,3,1			;CATWALK 10.10
+
+	PUTCAT 19,168,5,0			;CATWALK 10.12
+
+	PUTRMP 80,179,1,0			;CATWALK 10.13
+	PUTRMP 80,133,1,0			;CATWALK 10.8
+	PUTRMP 80,157,1,0			;CATWALK 10.11
+
+	;*****************************************************************
+	;           SETUP SCREEN #10 - KEGS OF POWDER
+	;*****************************************************************
+
+	PUTTSE 24,104,KEG3,2,2,24,104,33,116,66		;THREE POWDER KEGS
+	PUTTSE 40,104,KEG3,2,2,40,104,52,116,66	
+	PUTTSE 56,104,KEG3,2,2,56,104,65,116,66
+
+	PUTTSE 24,128,KEG3,2,2,24,128,33,140,66		;THREE POWDER KEGS
+	PUTTSE 40,128,KEG3,2,2,40,128,52,140,66	
+	PUTTSE 56,128,KEG3,2,2,56,128,65,140,66
+
+	PUTTSE 24,156,KEG2,2,1,24,156,33,161,60		;TWO POWDER KEGS
+	PUTTSE 40,156,KEG2,2,1,40,156,52,161,60
+	PUTTSE 56,156,KEG2,2,1,56,156,65,161,60
+
+	PUTTSE 24,178,KEG1,1,1,24,178,27,183,54		;ONE POWDER KEG
+	PUTTSE 40,178,KEG1,1,1,40,178,43,183,54		
+	PUTTSE 56,178,KEG1,1,1,56,178,59,183,54
+
+	;***************************************************************
+	;	BOTTOM PLATFORM / SCREEN BOUNDARIES / TRACKS
+	;***************************************************************
+
+	PUTPLT 0,184,32			;BOTTOM PLATFORM
+
+	PUTWAL 6,0,6,190,0,1		;LEFT SIDE OF SCREEN
+	PUTWAL 252,0,252,190,0,1	;RIGHT SIDE OF SCREEN
+	PUTWAL 6,190,252,190,0,1	;BOTTOM OF SCREEN
+
+	PUTTRK 112,182,15
+
+	;******************************************************************
+	;        SETUP SCREEN #10 - MONSTERS
+	;******************************************************************
+
+	MONENT 23,10,126,10,1,1			;MONSTER #1
+	MONENT 23,172,234,218,0,1		;MONSTER #2
+	MONENT 65,10,126,126,0,1		;MONSTER #3
+	MONENT 65,172,234,234,0,1		;MONSTER #4
+	MONENT 107,96,128,96,1,1		;MONSTER #5
+	MONENT 107,172,240,172,1,1		;MONSTER #6
+
+	;*****************************************************************
+	;        BOUNTY BOB / NUMBER OF CATWALKS / TIMER
+	;*****************************************************************
+
+	PUTEFF 5				;CANNON
+
+;	PUTBOB 220,188,130,070H
+	PUTBOB 210,142,128,070H
+	PUTEND
+
+;***************************************************************************
+
+	END

@@ -1,0 +1,14 @@
+           .Z80
+           CSEG
+           .RADIX 2
+;
+;
+JFLET::
+;
+           DB 001H
+;
+;
+ DB 000H,0FFH,010H,010H,07FH,010H,010H,090H,060H
+;
+            END
+
