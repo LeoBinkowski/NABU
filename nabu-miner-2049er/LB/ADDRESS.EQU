@@ -40,5 +40,4 @@ VATRIAD		EQU	1C00H
 VCOLRAD		EQU	2000H
 VSPRIAD		EQU	3800H			
 
-                       *
-;*               - Assembler: MACRO-80                     
+

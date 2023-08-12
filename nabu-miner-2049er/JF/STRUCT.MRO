@@ -296,6 +296,4 @@ BLOCKM.   MACRO      DEST, SRC, COUNT
           ENDIF
           ENDM
           
-       C, END
-          CP          C              
 
