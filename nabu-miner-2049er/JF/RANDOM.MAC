@@ -1,0 +1,55 @@
+;
+; RANDOM NUMBER GENERATOR ROUTINES
+;
+; MISSING SOURCE CODE RECREATION
+;
+; SCOTT LABOMBARD
+; 8-13-2023
+;
+
+        PUBLIC  RANDOM,INITRAN
+        .Z80
+		.RADIX	10
+
+        EXTRN   SEED
+
+; THIS ROUTINE RETURNS A PSEUDORANDOM NUMBER 
+; A NEW SEED VALUE IS UTILIZED EACH TIME THIS ROUTINE IS CALLED
+; RETURNS REGISTER A = RANDOM NUMBER
+RANDOM:
+        LD      A,(SEED)	; GET CURRENT SEED TO A
+        SLA     A			; TIMES 8
+        SLA     A
+        SLA     A
+        LD      HL,(SEED)	; NOW GET SEED TO HL
+        ADD     HL,HL		; TIMES 4
+        ADD     HL,HL
+        EX      DE,HL		; MOVE TO DE
+        LD      HL,(SEED)	; GET SEED YET AGAIN
+        ADD     HL,DE		; ADD TO (OLD SEED X 4)
+        LD      D,A			; D = (OLD SEED X 8)
+        LD      E,00H
+        ADD     HL,DE
+        LD      DE,03619H	; ADD ARBITRARY VALUE
+        ADD     HL,DE
+        LD      (SEED),HL	; SAVE AS NEW SEED FOR NEXT CALL
+        LD      A,H			; RETURN H AS RANDOM NUMBER
+        RET
+
+; THIS ROUNTINE INITIALIZES THE SEED VALUE USED FOR RANDOM NUMBER
+; GENERATION
+INITRAN:
+        LD      A,R			; GET CURRENT VALUE OF MEM REFRESH REG
+        LD      B,A			; SET AS LOOP COUNT
+INITR:						; NOW WAIT A BIT WHILE R INCREMENTS
+        NOP
+        NOP
+        DJNZ    INITR
+        LD      H,A			; SET H AS 1ST MEM REFRESH VALUE
+        LD      A,R			; GET NEW MEM REFRESH VALUE
+        LD      L,A			; SET AS L
+        LD      (SEED),HL	; SAVE AS NEW SEED
+        RET
+
+        END
+
