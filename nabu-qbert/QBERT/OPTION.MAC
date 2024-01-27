@@ -1,0 +1,522 @@
+	 	.Z80
+		.RADIX	10
+		CSEG
+
+		INCLUDE	COMMON.MRO
+		INCLUDE LINKTAB.EXA
+		INCLUDE	ADDRESS.EQU
+
+;*****************************************************************
+;*                                                               *
+;*    FILE NAME:        OPTION.MAC                               *
+;*                                                               *
+;*    FILE DESCRIPTION:                                          *  
+;*                                                               *
+;*      this file does the option screen                         *
+;*      REGISTER CLOBBER: AF,BC,DE,HL                            *
+;*                                                               *
+;*    PROGRAMMER: L. Binkowski, T. Nguyen C. Chow                *
+;*                                                               *
+;*    ENVIRONMENT- Development Machine: NABU 1100, MCP 1.8       *
+;*                                                               *
+;*               - Assembler: MACRO-80                           *
+;*                                                               *
+;*****************************************************************
+;
+;To use option:
+;
+;     PCALL OPTION,StartAddressOfMessage,EndAddressOfMessage,NumberOfChoices
+;
+;     where StartAddressOfMessage and EndAddressOfMessage contain all the
+;     text to put up on the screen with ALL OF THE OPTIONS PLACED AT THE
+;     END OF THE BLOCK.
+;     The NumberOfChoices is 1,2,3, etc. However if NumberOfChoices=0FFH
+;     then the option involves numbers and so checks these globals setup by 
+;     the calling routine:
+;	INC_VAR - The amount to increment the value on the screen by each pass
+;	LOW_VAL - The lowest value obtainable
+;	HIGH_VAL - The highest value obtainable
+;
+;Option checks one flag:
+;
+;	NABUF  - If NABUF is  1 then NABU LOGO will be put up
+;		 If NABUF is  0 then NABU LOGO will NOT be put up
+;
+;
+;	Register HL contains the choice that the user picks.
+;  	     HL = 1 if the first choice is chosen etc.
+;	or   HL = # the user has chosen if it is a option with numbers
+;
+;	
+		EXTRN	REVERSE,RESTART,HELP,DRWSCN,PUTLOGO
+		EXTRN	DIV1516,MUL1616
+;
+;                
+OPTIN1:		DS	2
+OPTIN2:		DS	2
+NOCHOI:		DS	1
+YCRD:		DS	1
+XCRD:		DS	1
+PUTX:		DS	1
+PUTY:		DS	1
+JVAL:		DS	1
+KVAL:		DS	1
+CHOICE:		DS	1
+STADIN:		DS	2
+PRADIN:		DS	2
+NABUF::		DB	0
+LENVAR:		DS	1
+INC_VAR::	DS	2
+LOW_VAL::	DS	2
+HIGH_VAL::	DS	2	
+;
+;
+OPTION::
+	LD	(OPTIN1),BC			;SAVE START POINTER OF TEXT
+	LD	(OPTIN2),DE			;SAVE END POINTER OF TEXT
+        LD	(NOCHOI),HL			;SAVE NUMBER OF CHOICES
+	PUSH	IX				;SAVE IX
+						;	
+CHKLEN:						;
+	LD	HL,(OPTIN2)			;  ASSIGN HL END POINTER OF TEXT
+	XOR	A				;  LENVAR := 0
+	LD	(LENVAR),A			;
+	LD	A,(NOCHOI)			;  FOR B := (NOCHOI) DOWNTO 1 
+	LD	B,A				;  DO
+	CP	0FFH				;    IF (NOCHOI)=0FFH
+	JP	Z,NUMSET			;	THEN QUIT LOOP
+LOOP1:						;
+	DEC	HL				;    IX := WITH ADDRESS OF TEXT
+	LD	D,(HL)				;  
+	DEC	HL				;
+	LD	E,(HL)				;
+	PUSH	DE				;
+	POP	IX				;
+	LD	A,(IX+2)			;    C := LENGTH OF TEXT
+	LD	C,A				;
+	LD	A,(LENVAR)			;    A := LENVAR
+	CP	C				;    IF A < C THEN
+	JR	NC,ENDLP1			;
+	LD	A,C				;
+	LD	(LENVAR),A			;      LENVAR := LENGTH OF TEXT
+ENDLP1:	DJNZ	LOOP1				;  ENDFOR
+						;
+	CALL	GETXY				;
+						;
+	LD	(PRADIN),HL			;SAVE START ADDRESS OF 
+						;OPTION IN PRADIN
+	DEC	HL				;SAVE START ADDRESS OF OPTION
+	DEC	HL				;MINUS 2 IN STADIN
+	LD	(STADIN),HL			;
+						;
+	LD	A,1				;DEFAULT TO CHOICE 1
+	LD	(CHOICE),A			;
+						;
+NUMRET:	PCALL	VFILL,300H,20H,VNAMEAD		;CLEAR SCREEN
+						;
+	LD	A,(NABUF)			;IF NABUF := 1 THEN
+	AND	A				;
+	JP	Z,PUTSCR			;
+	PCALL 	PUTLOGO,02H,0H			;  PUT UP LOGO
+	XOR	A				;  NABUF := 0
+	LD	(NABUF),A			;ENDIF
+						;
+PUTSCR:	PCALL	DRWSCN,(OPTIN1),(OPTIN2)	;PUTUP SCREEN
+	XOR	A				;
+	PCALL	REVERSE,(XCRD),(YCRD),(LENVAR)	;PUT HI-LITE BAR ON THE FIRST
+						;CHOICE OR NUMBER
+						;
+CLRKEY:	XOR	A				;
+	LD	(JVAL),A			;  JVAL :=0	
+	LD	(KVAL),A			;  KVAL :=0
+DOKEY:	N.DEVRDY KEYBOARD,KEYSTROKE
+	AND	A				;ANYTHING IN KEYBOARD BUFFER?
+	JR	NZ,DOKEY1			;YES - GETIT
+	PUSH	AF				;SAVE FLAGS
+	LD	A,(CHOICE)			;IF CHOICE = 0FFH
+	CP	0FFH				;  SKIP READING KEYBOARD
+	JR	Z,ALTER0			;ELSE
+	POP	AF				;  JUMP TO CHECK JOYSTICK
+	JR	Z,DOJOY				;ENDIF
+ALTER0:	POP	AF				;
+	JR	Z,SKIP0				;
+DOKEY1:	N.DEVIO	KEYBOARD,KEYSTROKE		;READ KEYBOARD INPUT
+	LD	(KVAL),A			;SAVE VALUE
+SKIP0:	LD	A,(KVAL)			;GET SAVED VALUE
+						;CASE INPUT OF 
+	CP	0ABH				;RESTART1: RESTART GAME
+	JP	Z,POPRES			;
+	CP	0BDH				;RESTART1: RESTART GAME
+	JP	Z,POPRES			;
+	CP	0EAH				;HELP:     GET INSTRUCTION
+	JP	Z,POPHLP			;
+	CP	0E2H				;UP ARROW:
+	JP	Z,ONEPLA			;         MOVE HI-LITE BAR UP
+	CP	0E3H				;DOWN ARROW:
+	JP	Z,TWOPLA			;         MOVE HI-LITE BAR DOWN
+	CP	0F2H				;RELEASED UP ARROW:
+	JP	Z,CLRKEY			;         CLEAR KEYBOARD VALUE
+	CP	0F3H				;RELEASED DOWN ARROW:
+	JP	Z,CLRKEY			;         CLEAR KEYBOARD VALUE
+	CP	0DH				;GO:
+	JP	Z,EXECPL			;         START GAME
+	AND	A				;NOTHING:
+	JR	Z,DOJOY				;	  CHECK JOYSTICK
+	CALL	RUDENOISE			;NONE OF THE ABOVE:
+						;         MAKE RUDE NOISE
+						;ENDCASE
+	JR	CLRKEY				;CLEAR KEYBOARD VALUE
+						;
+DOJOY:	N.DEVRDY KEYBOARD,JSTCK1	
+	AND	A				;ANYTHING IN JOYSTICK BUFFER?
+	JR	NZ,DOJOY1			;YES - GETIT
+	PUSH	AF				;SAVE FLAGS
+	LD	A,(CHOICE)			;
+	CP	0FFH				;IF CHOICE = 0FFH
+	JR	Z,ALTER1			;  SKIP READING JOYSTICK
+	POP	AF				;ELSE 
+	JR	Z,DOKEY				;  JUMP TO CHECK KEYBOARD
+ALTER1:	POP	AF				;ENDIF
+	JR	Z,SKIP1				;
+DOJOY1:	N.DEVIO	KEYBOARD,JSTCK1			;READ JOYSTICK
+	LD	(JVAL),A			;SAVE VALUE
+SKIP1:	LD	A,(JVAL)			;GET SAVED VALUE
+						;CASE JOYSTIK OF
+	BIT	3,A				;  WAS PUSHED UP:
+	JR	NZ,ONEPLA			;     MOVE HI-LITE BAR UP
+	BIT	1,A				;  WAS PUSHED DOWN:
+	JR	NZ,TWOPLA			;     MOVE HI-LITE BAR DOWN
+	BIT	4,A				;  WAS PUSHBUTTON:
+	JP	NZ,EXECPL			;     START GAME
+	JP	DOKEY				;  NONE OF THE ABOVE: 
+						;     CHECK KEYBOARD BUFFER
+						;ENDCASE
+ONEPLA:	LD	A,(CHOICE)			;
+	CP	0FFH				;IF CHOICE = 0FFH THEN
+	JR	Z,NUMUP				;  JUMP 
+	CP	1				;IF CHOICE = 1 THEN 
+	JR	NZ,ENDIF2 			;  
+	LD	HL,(OPTIN2)			;  PRADIN := END ADDRESS OF
+	LD	(PRADIN),HL			;	     OPTION
+	LD	A,(NOCHOI)			;  A := NOCHOI + 1
+	INC	A				;
+ENDIF2:						;ENDIF
+	DEC	A				;
+	LD	(CHOICE),A			;  CHOICE  := CHOICE - 1
+	LD	HL,(PRADIN)			;  PRADIN := PRADIN - 2
+	DEC	HL				;
+	DEC	HL				;
+	CALL	PUTBAR				;  MOVE HI-LITE BAR UP
+	JP	DOKEY				;  CHECK KEYBOARD
+NUMUP:	
+	LD	BC,(INC_VAR)
+	LD	DE,(HIGH_VAL)
+	LD	HL,(AMOUNT)			;IF OVERFLOW
+	ADD	HL,BC				; JUMP
+	JR	C,NUMU1				;ELSE
+	LD	(AMOUNT),HL			;  AMOUNT := AMOUNT + INC_VAR
+						;ENDIF	
+	AND	A
+	SBC	HL,DE				;IF AMOUNT > HIGH_VAL
+	JR	C,PUTAMT			;
+NUMU1:	LD	(AMOUNT),DE			; AMOUNT := HIGH_VAL
+	JR	PUTAMT				;ENDIF
+
+TWOPLA: LD	A,(CHOICE)			;
+	CP	0FFH				;IF CHOICE = 0FFH
+	JR	Z,NUMDN				; JUMP
+	LD	HL,NOCHOI			;
+	CP	(HL)				;IF CHOICE = NOCHOICE THEN
+	JR	NZ,ENDIF3			; 
+	LD	HL,(STADIN)			;  PRADIN := STADIN
+	LD	(PRADIN),HL			;
+	XOR	A				;  CHOICE := 0
+	LD	(CHOICE),A			;
+ENDIF3:						;ENDIF
+	INC	A				;
+	LD	(CHOICE),A			;  CHOICE := CHOICE + 1
+	LD	HL,(PRADIN)			;  PRADIN := PRADIN + 2
+	INC	HL				;
+	INC	HL				;
+	CALL	PUTBAR				;  MOVE HI-LITE BAR DOWN
+	JP	DOKEY				;  GO BACK TO CHECK FOR INPUT
+NUMDN:						;
+	LD	BC,(INC_VAR)
+	LD	DE,(LOW_VAL)
+	LD	HL,(AMOUNT)
+	AND	A				;IF AMOUNT < INC_VAR 
+	SBC	HL,BC				;  JUMP
+	JR	C,NUMD1				;ELSE		
+	LD	(AMOUNT),HL			;  AMOUNT := AMOUNT - INC_VAR
+						;ENDIF
+	AND	A				;
+	SBC	HL,DE				;IF AMOUNT < LOW_VAL
+	JR	NC,PUTAMT			;
+NUMD1:	LD	(AMOUNT),DE			;  AMOUNT := LOW_VAL
+	JR	PUTAMT				;ENDIF
+
+PUTAMT:	PCALL	CONVERT,(AMOUNT)		;CHANGE AMOUNT TO ASCII
+	PCALL	PUTNUM,(PUTX),(PUTY)		;PUT ON ASCII NUMBER
+	LD	HL,90H
+	CALL	DELAY	
+	JP	DOKEY
+
+EXECPL:	POP	IX				;RESTORE IX
+	LD	A,(CHOICE)              	;
+	LD	L,A				;RETURN CHOICE IN HL REG
+	LD	H,0				;
+	CP	0FFH				;IF CHOICE = 0FFH
+	RET	NZ				;
+	LD	HL,(AMOUNT)			; RETURN AMOUNT IN HL REG
+	RET					
+;
+;	THIS ROUTINE WILL GENERATE A DISGUSTING NOISE
+;
+AUDIOTABLE:
+	DB	0,58H,1,2H,7,3EH,8,10H,0DH,0EH,0BH,4BH,0CH,00H
+RUDENOISE:
+	LD	HL,AUDIOTABLE			;LOAD UP AUDIO REGISTERS
+	LD	B,7
+LOAD:	LD	C,(HL)
+	INC	HL
+	LD	E,(HL)
+	INC	HL
+	CALL	AUDIOWR
+	DJNZ	LOAD
+
+	LD	HL,125H				;SET DELAY
+DELAY:
+DL1:	LD	B,069H
+DL2:	PUSH	BC
+	POP	BC
+	DJNZ	DL2
+	DEC	HL
+	LD	A,H
+	OR	L
+	JR	NZ,DL1
+
+	PCALL	AUDIOWR,7,0FFH			;KILL SOUND
+	PCALL	AUDIOWR,8,00H	
+	RET
+						;
+PUTBAR:						;
+	LD	(PRADIN),HL			;  SAVE HL
+	PCALL	REVERSE,(XCRD),(YCRD),(LENVAR)	;  UNREVERSE HI-LITE BAR
+	LD	HL,(PRADIN)			;
+	CALL	FINDXY				;
+	XOR	A				;
+	PCALL	REVERSE,(XCRD),(YCRD),(LENVAR)  ;  REVERSE NEXT OPTION
+	RET					;
+						;
+FINDXY:						;
+	LD	E,(HL)				;
+	INC	HL				;
+	LD	D,(HL)				;
+	PUSH	DE				;
+	POP	IX				;
+GETXY:						;
+	LD	A,(IX)				;  XCRD := XCOR OF NEXT OP  
+	DEC	A				;
+	LD	(XCRD),A			;
+	LD	A,(IX+1)			;  YCRD := YCOR OF NEXT OP
+	DEC	A				;
+	LD	(YCRD),A			;
+	RET					;
+						;
+POPRES:	POP 	HL
+	POP	IX
+	JP	RESTART
+;					
+POPHLP:	POP	HL
+	POP	IX
+	JP 	HELP
+
+
+NUMSET:
+	LD	(CHOICE),A			;  CHOICE := 0FFH
+	DEC	HL				;
+	LD	B,(HL)				;
+	DEC	HL				;
+	LD	C,(HL)				;
+	PUSH	BC				;
+	CALL	ASCII_HEX			;INITIALIZE (AMOUNT)
+	PCALL	CONVERT,(HIGH_VAL)		;FIND LONGEST LENGTH
+	LD	A,(ZBUFF)			;
+	LD	(LENVAR),A			;  LENVAR :=ZBUFF
+	LD	C,A				;
+	POP	HL				;
+	LD	A,(HL)				;
+	INC	HL				;
+	INC	HL				;
+	ADD	A,(HL)				;
+	DEC	A				;
+	LD	(PUTX),A			;  PUTX := X + LENGTH - 1
+	SUB	C				;
+	LD	(XCRD),A			;  XCRD := X + LENGTH - 1
+						;          - MAX_LEN
+	DEC	HL				;
+	LD	A,(HL)				;
+	LD	(PUTY),A			;  PUTX := Y
+	DEC	A				;
+	LD	(YCRD),A			;  YCRD := Y - 1
+	JP	NUMRET				;
+
+
+;
+;
+;	ROUTINE NAME:	CONVERT
+;
+;	DESCRIPTION:
+;			CONVERTS A TWO BYTE HEX VALUE INTO ITS
+;			CORRESPONDING REVERSE VIDEO ASCII VALUE
+;			AND STORES STORES IT IN A TEN BYTE BUFFER
+;			RIGHT JUSTIFIED. THE LENGTH OF THE ASCII
+;			VALUE IS STORED IN THE VALUE ZBUFF.
+;	
+;	REGISTERS CLOBBERED:
+;			AF,BC,DE,HL,IX
+;
+;	PARAMETERS PASSED:
+;			BC REG - THE NUMBER TO BE CONVERTED
+;
+;	GLOBALS ACCESSED:
+;			DIV1516 
+;
+;	GLOBALS WRITTEN:
+;			NONE
+;
+;
+BLANK		EQU	20H+80H		;REVERSE VIDEO BLANK
+
+ZBUFF:		DB	0
+BUFFER:		DS	10
+TEMP:		DW	0
+
+CONVERT::
+		LD	(TEMP),BC	
+		LD	HL,ZBUFF
+		LD	(HL),0		;ZERO COUNTER
+		LD	DE,BUFFER
+		LD	BC,10
+		LDIR			;CLEAR BUFFER
+		LD	IX,BUFFER+9	;LOAD IX WITH LAST BYTE ADDRESS
+CV1:		PCALL	DIV1516,(TEMP),0AH	;DIVIDE NUMBER BY TEN
+		LD	(TEMP),BC		
+		LD	A,30H+80H	;30H FOR ASCII+80H FOR REVERSE VIDEO
+		ADD	A,E		;REMAINDER IN E REG
+		LD	(IX),A		;LOAD INTO BUFFER
+		LD	HL,ZBUFF
+		INC	(HL)		;INCREMENT COUNTER OF NUMBER OF DIGITS
+		DEC	IX		;DECREMENT BUFFER COUNTER
+		LD	A,C
+		OR	B
+		JR	NZ,CV1		;JUMP TO A2 IF NUMBER IS NOT ZERO
+		LD	BC,ZBUFF
+CV2:		LD	(IX),BLANK	;PUT A BLANK INTO BUFFER
+ 		DEC	IX
+		PUSH	IX
+		POP	HL
+		AND	A
+		SBC	HL,BC		;FINISHED BUFFER?
+		JR	NZ,CV2		;NO - LOOP
+		RET				
+
+;
+;	NAME:	PUTNUM
+;
+;	DESCRIPTION:
+;			THIS ROUTINE PUTS UP THE REVERSE
+;			VIDEO NUMBERS IN THE BUFFER FILLED
+;			BY CONVERT. IT ALSO FILLS THE SPACES
+;			PRECEDING THE NUMBER WITH REVERSE 
+;			SPACES. THE TOTAL NUMBER OF REVERSE
+;			VIDEO CHARACTERS DEPENDS ON THE VALUE
+;			OF MAX_LEN (MAXIMUM OF 10).
+;
+;	REGISTERS CLOBBERED:
+;			AF,BC,HL,IX
+;
+;	PARAMETERS PASSED:
+;			C REG - X COOR
+;			E REG - Y COOR
+;	
+;	GLOBALS ACCESSED:
+;			NONE
+;
+;	GLOBALS WRITTEN:
+;			NONE
+;
+
+PUTNUM:
+		LD	A,(LENVAR)	;SET COUNTER
+		LD	IX,BUFFER+9	;SETUP IX REG WITH END OF BUFFER
+PTN1:		PUSH	AF
+		PUSH	BC
+		PUSH	DE
+		LD	L,(IX)
+		CALL	PUTPAT
+		POP	DE
+		POP	BC
+		POP	AF
+		DEC	C		;DECREMENT X COOR
+		DEC	IX		;DECREMENT BUFFER COUNTER
+		DEC	A		;DECREMENT COUNTER
+		JR	NZ,PTN1		;COUNTER=0? - NO - JUMP
+		RET
+
+;
+;	NAME:	ASCII_HEX
+;
+;	DESCRIPTION:
+;			THIS ROUTINE CONVERTS A DEFMSG OF AN ASCII
+;			NUMBER INTO A TWO BYTE HEX NUMBER.
+;
+;	REGISTERS CLOBBERED:
+;			AF,BC,DE,HL
+;
+;	PARAMETERS PASSED:
+;			BC REG - ADDRESS OF ASCII STRING IN DEFMSG FORM 
+;
+;	GLOBALS ACCESSED:
+;			MUL1616
+;
+;	GLOBALS WRITTEN:
+;			NONE
+;
+AMOUNT:		DW	0
+POWER:		DW	0
+
+ASCII_HEX:
+		LD	HL,1
+		LD	(POWER),HL	;INITIALIZE POWER
+		LD	HL,0
+		LD	(AMOUNT),HL	;INITIALIZE AMOUNT
+		INC	BC
+		INC	BC
+		LD	A,(BC)		;COUNTER=LENGTH
+		LD	L,A
+		LD	H,0
+		ADD	HL,BC		;SETUP POINTER TO END OF STRING
+AH1:		PUSH	AF
+		PUSH	HL
+		LD	A,(HL)
+		AND	0FH		;GET DIGIT
+		LD	E,A
+		LD	D,0
+		PCALL	MUL1616,(POWER)
+		LD	HL,(AMOUNT)
+		ADD	HL,BC
+		LD	(AMOUNT),HL	;AMOUNT=AMOUNT+DIGIT*POWER
+		PCALL	MUL1616,0AH,(POWER)
+		LD	(POWER),BC	;POWER=POWER*10
+		POP	HL
+		POP	AF
+		DEC	HL		;DECREMENT POINTER
+		DEC	A
+		JR	NZ,AH1		;COUNTER=0? - NO - JUMP
+		RET
+
+
+		END
+
+

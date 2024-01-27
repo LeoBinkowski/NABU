@@ -1,0 +1,186 @@
+;******************************************************************************
+;
+;	MACRO NAME: ADD8.
+;
+;******************************************************************************
+;
+;	FILE NAME: ARITH.MRO
+;
+;	DESCRIPTION:
+;			ADDS TWO 8 BIT VARIABLES, OR A 8 BIT VARIABLE
+;			AND A CONSTANT TOGETHER IN THE MINIMUM AMOUNT
+;			OF CODE. WORKS SOMETHING LIKE ASIGN8. MACRO 
+;	
+;
+;	AUTHOR:	TODD MACNAUGHT
+;	DATE and ISSUE:		(July 2, 1982   Version 1.0)
+;	CATALOGUE ID:		(MRO - AS - 0009)
+;
+;	PARAMETERS PASSED:  
+;				2  8-BIT VARIABLES 
+;				OR AN 8 BIT VARIABLE
+;				AND A CONSTANT	
+;			
+;	PARAMETERS RETURNED: 
+;				SUM IN 8 RETURNED IN FIRST 8 BIT VARIABLE 
+;
+;	REGISTERS CLOBBERED: A, BC
+;
+;	GLOBALS ACCESSED:    NONE
+;
+;	GLOBALS WRITTEN:     NONE
+;
+;	COMMENTS and WARNINGS:
+;				ORIGINAL CONTENTS OF 8 BIT 
+;				VARIABLE DESTROYED.  
+;
+;
+;******************************************************************************
+;
+
+ADD8. MACRO PARM1,PARM2
+        LD A,PARM1		;A GETS FIRST PARAMETER
+        LD BC,PARM2		;C GETS SECOND PARAMETER
+        ADD A,C			;ADD EM TOGETHER
+        LD PARM1,A		;PUT RESULT BACK IN VARIABLE
+        ENDM
+;
+;******************************************************************************
+;	MACRO NAME: ADD16.
+;
+;******************************************************************************
+;
+;	FILE NAME: ARITH.MRO
+;
+;	DESCRIPTION:
+;			ADDS TO 16 BIT VARIABLES, OR A 16 BIT VARIABLE
+;			AND A CONSTANT TOGETHER IN THE MINIMUM AMOUNT
+;			OF CODE. WORKS SOMETHING LIKE ASIGN16. MACRO 
+;	
+;
+;	AUTHOR:	TODD MACNAUGHT
+;	DATE and ISSUE:		(July 2, 1982   Version 1.0)
+;	CATALOGUE ID:		(MRO - AS - 0008)
+;
+;	PARAMETERS PASSED:  
+;				2  16-BIT VARIABLES 
+;				OR A 16 BIT VARIABLE
+;				AND A CONSTANT	
+;			
+;	PARAMETERS RETURNED: 
+;				SUM IN 16 BIT VARIABLE PASSED		
+;
+;	REGISTERS CLOBBERED: BC, HL
+;
+;	GLOBALS ACCESSED:    NONE
+;
+;	GLOBALS WRITTEN:     NONEŠ;
+;	COMMENTS and WARNINGS:
+;				ORIGINAL CONTENTS OF 16 BIT 
+;				VARIABLE DESTROYED.  
+;
+;******************************************************************************
+;
+
+ADD16. MACRO PARM1,PARM2
+        LD HL,PARM1		;HL GETS FIRST VALUE
+        LD BC,PARM2		;BC GETS SECOND VALUE
+        ADD HL,BC		;ADD DOUBLE REGISTERS TOGETER
+        LD PARM1,HL		;PUT RESULT BACK INTO 1st VARIABLE
+        ENDM
+;
+;******************************************************************************
+;
+;	MACRO NAME: SUB8.
+;
+;******************************************************************************
+;
+;	FILE NAME: ARITH.MRO
+;
+;	DESCRIPTION:
+;			SUBTRACTS TWO 8 BIT VARIABLES, OR A 8 BIT VARIABLE
+;			AND A CONSTANT IN THE MINIMUM AMOUNT OF CODE.
+;			WORKS SOMETHING LIKE ASIGN8. MACRO 
+;	
+;
+;	AUTHOR:	TODD MACNAUGHT
+;	DATE and ISSUE:		(July 2, 1982   Version 1.0)
+;	CATALOGUE ID:		(MRO - AS - 0009)
+;
+;	PARAMETERS PASSED:  
+;				2  8-BIT VARIABLES 
+;				OR AN 8 BIT VARIABLE
+;				AND A CONSTANT	
+;			
+;	PARAMETERS RETURNED: 
+;				DIFFERENCE RETIURNED IN FIRST 8 BIT VARIABLE 
+;
+;	REGISTERS CLOBBERED: A, BC
+;
+;	GLOBALS ACCESSED:    NONE
+;
+;	GLOBALS WRITTEN:     NONE
+;
+;	COMMENTS and WARNINGS:
+;				ORIGINAL CONTENTS OF 8 BIT 
+;				VARIABLE DESTROYED.  
+;
+;******************************************************************************
+;
+
+SUB8. MACRO PARM1,PARM2        LD A,PARM1		;A HOLDS FIRST VALUE
+        LD BC,PARM2		;C HOLDS SECOND VALUE
+        SUB C			;SUBTRACT C FROM A
+        LD PARM1,A		;PUT RESULT IN 1st VARIABLE
+        ENDM
+;
+;******************************************************************************
+;
+;	MACRO NAME: SUB16.
+;
+;******************************************************************************
+;
+;	FILE NAME: ARITH.MRO
+;
+;	DESCRIPTION:
+;			SUBTRACTS TO 16 BIT VARIABLES, OR A 16 BIT VARIABLE
+;			AND A CONSTANT FROM EACH OTHER IN THE MINIMUM AMOUNT
+;			OF CODE. SAME AS ADD16. MACRO EXCEPT FOR SUBTRACTION 
+;	
+;
+;	AUTHOR:	TODD MACNAUGHT
+;	DATE and ISSUE:		(July 2, 1982   Version 1.0)
+;	CATALOGUE ID:		(MRO - AS - 0010)
+;
+;	PARAMETERS PASSED:  
+;				2  16-BIT VARIABLES 
+;				OR A 16 BIT VARIABLE
+;				AND A CONSTANT	
+;			
+;	PARAMETERS RETURNED: 
+;				DIFFERENCE IN 16 BIT VARIABLE PASSED		
+;
+;	REGISTERS CLOBBERED: BC, HL
+;
+;	GLOBALS ACCESSED:    NONE
+;
+;	GLOBALS WRITTEN:     NONE
+;
+;	COMMENTS and WARNINGS:
+;				ORIGINAL CONTENTS OF 16 BIT 
+;				VARIABLE DESTROYED.  
+;
+;******************************************************************************
+;
+
+SUB16. MACRO PARM1,PARM2
+        LD HL,PARM1		;HL GETS FIRST VALUE
+        LD BC,PARM2		;BC GETS SECOND VALUE
+        SCF			;SET CARRY FLAG
+	CCF			;COMPLEMENT CARRY FLAG 
+	SBC HL,BC		;SUBTRACT DOUBLE REGISTERS
+	LD PARM1,HL		;PUT RESULT IN 1st VARIABLE PASSED 
+	ENDM
+;
+;******************************************************************************
+

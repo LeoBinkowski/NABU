@@ -1,0 +1,10 @@
+;
+;	THIS MODULE CONTAIN THE BASE ADDRESS EQUATES
+; 
+VPTRNAD		EQU	0000H	
+VNAMEAD		EQU	1800H
+VATRIAD		EQU	1C00H
+VCOLRAD		EQU	2000H
+VSPRIAD		EQU	3800H			
+
+

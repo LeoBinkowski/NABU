@@ -1,0 +1,203 @@
+ .Z80
+ CSEG
+ .RADIX 10
+;
+; PUT UP SCREEN OF NED COMPRESSED GRAPHICS - C CALLEABLE
+;   IT IS ASSUMED THAT THE GRAPHICS CHIP HAS BEEN INITIALIZED IN
+;   GRAPHICS TWO WITH THE PATTERN TABLE AT 0 AND THE COLOUR TABLE AT
+;   8K.  THE NAME TABLE IS ASSUMED TO BE 0-255,0-255,0-255
+;
+; INPUT PARAMETERS: (SP+2) - ADDRESS OF NED DATA STRUCTURE
+;
+; RETURN PARAMETERS: NONE
+;
+; REGISTERS CHANGED: A,B,C,D,E,H,L,IX
+;
+; CALLS VRAMLD
+        EXT  VRAMLD
+;
+; ROUTINE TO DECOMPRESS 1 BYTE OF COLOUR OR PATTERN - RETURNED IN A (AND L)
+;
+DOBYT:
+        LD   A,H        ; TEST CURRENT STATUS
+        CP   0          ; WAITING FOR COUNT?
+        JR   NZ,NCNT    ; NO
+        LD   A,(DE)       ; GET COUNT
+        LD   H,A
+        LD   A,L          ; CHARACTER TO REPEAT
+        CP   255          ; REPEAT 8TH PREVIOUS
+        JR   Z,NEXTI      ; YES
+        DEC  H            ; COUNT IS OFF 1 FOR ORDINARY REPEAT
+        JR   NEXTI        ; GO REPEAT
+NCNT:
+        CP   1          ; COUNT DEPLETED?
+        JR   Z,CDEPL    ; YES
+        DEC  H            ; DECREMENT COUNT
+        JR   REPEAT       ; PUT NEXT OCCURRENCE IN OUTPUT STREAM
+CDEPL:
+        LD   A,(DE)     ; GET CHARACTER
+        CP   0          ; REPEAT GROUP?
+        JR   Z,WCNT     ; YES. WAIT FOR COUNT
+        LD   L,A        ; NO REPEAT - PUT CHARACTER IN L
+        CP   255        ; REPEAT 8TH PREVIOUS
+        JR   NZ,NEXTI   ; NO
+WCNT:
+        LD   H,0        ; SET TO WAIT FOR COUNT
+NEXTI:
+        INC  DE         ; NEXT BYTE IN DATA STRUCTURE
+REPEAT:
+        LD   A,L        ; RETURN VALUE IN A
+        RET
+
+BSZ EQU 96   ; BUFFER SIZE - MUST DIVIDE 6144 AND MULTIPLE OF 8
+;
+VADD:   DW   0   ; CURRENT ADDRESS IN VRAM
+;
+;
+; MAIN ENTRY POINT
+;
+PUTNG::
+        PUSH BC  ; SAVE C REGS
+        PUSH IX
+        LD   BC,0
+        LD   (VADD),BC  ; BEGINNING VRAM ADDRESS
+        LD   HL,6       ; OFFSET OF NED STRUCTURE ADDRESS IN STACK
+        ADD  HL,SP      ; ADDRESS
+        LD   E,(HL)     ; GET LOW ORDER BYTE
+        INC  HL
+        LD   D,(HL)     ; GET HIGH ORDER BYTE
+        LD   BC,16+BSZ+BSZ  ; SIZE OF BUFFER REQUIRED
+        LD   HL,0
+        SCF
+        CCF
+        SBC  HL,BC   ; NEGATIVE BUFFER SIZE IN HL
+        ADD  HL,SP   ; SUBTRACT BUFFER SIZE FROM SP
+        LD   SP,HL   ; BUFFER NOW IN STACK
+        LD   H,1        ; REPEAT COUNT LESS 1 - SET TO INDICATE DEPLETED
+        PUSH HL    ; VALUES FOR PATTERN DECOMPRESSION START ON STACK
+;
+; LOOP BACK HERE AFTER FULL BUFFER WRITTEN
+;
+NXTBUF:
+        LD   IX,2       ; ALLOW FOR WORD ON STACK
+        ADD  IX,SP      ; START OF COLOUR BUFFER LESS 8
+        LD   B,BSZ      ; RESET BUFFER COUNT
+;
+; LOOP BACK HERE FOR NEXT COLOUR/PATTERN PAIR
+;
+NXTCHR:
+        CALL DOBYT      ; DECOMPRESS A COLOUR BYTE (RETURNED IN A AND L)
+        CP   255
+        JR   NZ,NOT8C   ; JUST REGULAR
+        LD   A,(IX+0)   ; GET 8TH PREVIOUS COLOUR BYTE
+        CP   0          ; CLEAR ON CLEAR
+        JR   NZ,NOTCL   ; NO. CHECK FOR OTHER MONOCOLOUR
+        LD   (IX+8),A   ; SET COLOUR TO CLEAR
+        JR   DOPAT      ; PATTERN IS ASSUMED - NOT COMPRESSED
+NOT8C:
+        CP   17         ; CLEAR ON CLEAR?
+        JR   NZ,NOTCL   ; NO. CHECK FOR OTHER MONOCOLOUR
+        LD   A,0        ; CLEAR IS COMPRESSED AS WHITE ON WHITE
+        LD   (IX+8),A   ; SET TO CLEAR
+        JR   DOPAT      ; SET PATTERN LIKEWISE - PATTERN NOT COMPRESSED
+NOTCL:
+        LD   (IX+8),A   ; PUT IN CURRENT
+        AND  15         ; CLEAR HIGH NIBBLE
+        CP   0          ; IS LOW NIBBLE CLEAR
+        LD   A,255      ; SOLID PATTERN IF SO
+        JR   Z,DOPAT    ; LOW NIB CLEAR - SOLID FOREGROUND - PATTERN ASSUMED
+        EX   (SP),HL    ; SWITCH TO COUNT AND CHARACTER FOR PATTERNS
+        CALL DOBYT      ; DECOMPRESS A PATTERN BYTE (RETURNED IN A AND L)
+        EX   (SP),HL    ; SWITCH BACK TO COUNT AND CHARACTER FOR COLOURS
+        CP   255        ; REPEAT GROUP OF 8
+        JR   NZ,NOT8P   ; NO. JUST REGULAR
+        LD   A,(IX+BSZ+8)   ; GET 8TH PREVIOUS PATTERN BYTE
+NOT8P:
+DOPAT:
+        LD   (IX+BSZ+16),A   ; PUT IN CURRENT
+        INC  IX         ; NEXT PLACE IN BUFFER
+        DJNZ NXTCHR     ; PROCESS NEXT BYTE PAIR UNLESS BUFFER FULL
+        PUSH DE         ; SAVE REGS
+        PUSH HL
+;
+; COPY LAST 8 BYTES OF EACH BUFFER TO BEFORE BUFFER TO ALLOW
+; FOR REPEATED GROUPS OF 8
+;
+        LD   HL,6    ; START OF GROUP OF 8 SAVE AREA FOR COLOURS
+        ADD  HL,SP
+        EX   DE,HL
+        LD   HL,BSZ
+        ADD  HL,DE   ; ADDRESS OF LAST GROUP OF 8    
+        LD   B,0
+        LD   C,8
+        LDIR    ; MOVE THEM
+        EX   DE,HL   ; START OF GROUP OF 8 SAVE AREA FOR PATTERNS
+        LD   HL,BSZ
+        ADD  HL,DE
+        LD   C,8
+        LDIR    ; MOVE THEM
+;
+; REVERSE COLOURS IN ALL BYTE PAIRS WITH CLEAR ON COLOURED BACKGROUND
+;
+        LD   IX,14  ; START OF COLOUR BUFFER
+        ADD  IX,SP
+        LD   B,BSZ       ; SIZE OF BUFFER
+RCLOOP:
+        LD   A,(IX+0)    ; GET COLOUR BYTE
+        CP   0           ; CLEAR?
+        JR   Z,RCEND     ; YES. NO ACTION
+        AND  240         ; CLEAR LOW BYTE
+        JR   NZ,RCEND    ; HIGH BYTE WASN'T CLEAR. NO ACTION
+        LD   A,(IX+0)    ; GET BYTE BACK
+        SLA  A   ; PUT COLOUR IN FOREGROUND
+        SLA  A
+        SLA  A
+        SLA  A
+        LD   (IX+0),A    ; TRANSFORMED COLOUR BYTE
+        LD   A,(IX+BSZ+8)  ; GET PATTERN BYTE
+        XOR  255           ; 1'S COMPLEMENT
+        LD   (IX+BSZ+8),A  ; TRANSFORMED PATTERN BYTE
+RCEND:
+        INC  IX            ; INDEX TO NEXT BYTES
+        DJNZ RCLOOP        ; GO DO NEXT
+;
+        LD   HL,14      ; OFFSET OF COLOUR TABLE IN STACK
+        ADD  HL,SP
+        EX   DE,HL      ; DATA ADDRESS IN DE
+        LD   HL,(VADD)  ; ADDRESS IN VRAM
+        LD   BC,8192    ; 8K
+        ADD  HL,BC        ; OFFSET IN COLOUR TABLE
+        LD   BC,BSZ       ; LENGTH OF DATA
+        CALL VRAMLD       ; WRITE COLOURS TO VRAM
+        LD   HL,BSZ+22    ; OFFSET OF PATTERN TABLE IN STACK
+        ADD  HL,SP
+        EX   DE,HL
+        LD   HL,(VADD)    ; ADDRESS IN VRAM
+        LD   BC,BSZ       ; LENGTH OF DATA
+        CALL VRAMLD     ; WRITE PATTERNS TO VRAM
+        LD   HL,(VADD)  ; GET ADDRESS IN VRAM
+        LD   BC,BSZ     ; BUFFER SIZE
+        ADD  HL,BC      ; NEXT ADDRESS IN VRAM
+        LD   A,L
+        CP   0          ; POSSIBLE END OF TABLE?
+        JR   NZ,NOEND
+        LD   A,H        ; GET HIGH ORDER BYTE
+        CP   24         ; 0K + (24 * 256) ??
+        JR   Z,GEND     ; YES. END OF DECOMPRESSION
+NOEND:
+        LD   (VADD),HL  ; SAVE NEXT VRAM ADDRESS
+        POP  HL
+        POP  DE
+        JP   NXTBUF     ; PROCESS NEXT BUFFER FULL
+GEND:
+        POP  HL    ;
+        POP  HL    ; CLEAR STACK
+        POP  HL    ; BEFORE RETURN
+        LD   HL,16+BSZ+BSZ   ; BUFFER SIZE
+        ADD  HL,SP
+        LD   SP,HL   ; REMOVE BUFFER FROM STACK
+        POP  IX    ; RESTORE C REGS
+        POP  BC
+        RET    ; FINISHED
+	END
+
