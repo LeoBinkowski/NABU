@@ -1,0 +1,326 @@
+	.z80
+;*****************************************************************************
+;
+;	FILE NAME:	PTHGR1.MAC
+;
+;	VERSION:	V1.1
+;
+;	DATE:		FEB/14/84
+;
+;	AUTHORS:	Yves C. Lupien
+;
+;	REVISION DATE:	MAR/09/84
+;
+;	AMENDMENTS:
+;
+;	CHANGE DESCRIPTION: The user is responsable for his page format.
+;			    C register is now used to pass a parameter
+;			    that indicates the number of lines you want
+;			    to pass before the next printing. If you load
+;			    C with 0, then a form feed will be sent.						
+;			    The standard page format is the following:
+;
+;				4 blank lines
+;                              23 lines of text
+;                               4 blank lines
+;                              23 lines of text
+;                              12 blank lines
+;                      Total:  66 lines				
+;
+;******************************************************************************
+;
+;	FILES REQUIRED:	
+;		PTHGR1.MAC - THIS SOURCE FILE
+;		M80.COM	   - ASSEMBLER WITH Z80 OPTION
+;	
+;******************************************************************************
+;
+;
+;	SYNOPSIS:
+;		This file provides one function to print the contents of one
+;		page of a currently displayed help file.
+;
+;	RESTRICTIONS:
+;		- works only in graphic mode 1 (see PRTHEP.MAC for textmode)
+;	
+;
+;******************************************************************************
+;
+;	ENTRY POINTS:
+;		PRTHLP - Print the currently displayed page of HELP file
+;
+;******************************************************************************
+;
+;	GLOBALS DATA DEFINED:
+;
+;******************************************************************************
+;
+;	EXTERNAL PROCEDURES CALLED:
+;		BOS calls:	FASTD8, VRAML8, VRAMRD, VTABRD
+;
+;******************************************************************************
+;
+;	EXTERNAL DATA REFERENCED:
+;
+;******************************************************************************
+;
+;		LITERAL DECLARATIONS
+;
+;
+;	Bios call codes:
+;
+;	FASTD¸	EQÕ	11H
+;	VRAML8	EQU	13H
+;	VRAMRD	EQU	0dH
+;	VTABRD	EQU	01H
+;
+;		DATA
+;
+;	Change these constants depending on your page format:
+;
+HLPINC	EQU 400H	; LENGTH OF ONE VRAM PAGE
+HLPLN	EQU 24		; NUMBER OF LINE IN ONE SCREEN
+LINELN	EQU 32		; LENGTH OF A PHYSICAL LINE
+;
+CR	EQU 0DH
+LF	EQU 0AH
+FF	EQU 0CH		; FORM FEED
+HEADLN	EQU 4-1		; NUMBER OF BLANK LINES IN THE HEADER - 1
+;
+FCANCEL:DB 0		; CANCEL FLAG
+NOSCRN:	DB 0		; # OF SCREEN TO BE PRINTED
+MSSRC:	DW 0		; SOURCE MESSAGE ON SCREEN
+HLPSTK:	DW 0		; SAVE STACK DURING PRINT HELP
+STKSV:	DW 0		; SAVE STACK DURING PRINTC
+HLPPTR:	DW 0		; POINTER TO NAME TABLE IN VRAM
+ENDERL:	DB 0		; NUMBER OF BLANK LINE TO SEND
+SAVBUF:	DS LINELN	; SAVE LAST LINE
+;
+; PRINT MESSAGE  must be the length of a line (LINELN)
+;
+PRNMSG:	DB '  STOP PRINTING?  PRESS ESC     '
+;
+;
+;
+;******************************************************************************
+;******************************************************************************
+;
+;	ROUTINE NAME: PRTHLP
+;---------------------------
+;
+;	FUNCTION: Print the current displayed screen in HELP routine.
+;
+;	DESCRIPTION:
+;		This routine is called when the SYM-1 (0B1H) key is pressed
+;		on keyboard when you are in HELP routine. (You perform that 
+;		CALL in	your DISPLAYED HELP routine).
+;
+;		You can cancel the printing of a HELP screen at 
+;		anytime	by hitting the ESC key.
+;
+;		If you want to print all the HELP file, you have to provide
+;		your own routine and call PRTHLP for each page to be printed.
+;
+;		The last line of the screen is reserved for printing the 
+;		"print	message". So, the last line of each page of help 
+;		file will never	be printed.
+;
+;		NOTE: This routine send 4 blank lines and then print
+;		the current screen (23 lines).
+;
+;	PARAMETERS PASSED:
+;		C = Number of blank lines to write AFTER printing  a
+;		screen. If you load C with ZERO, then a Form Feed will
+;		be sent.
+;
+;	PARAMATERS RETURNED:
+;		The CARRY flag is set if the ESC key (printing cancelled)
+;		is pressed, otherwise it is reset.
+;
+;	REGISTERS USED:
+;		A, BC, DE, HL, FLAGS
+;
+;-----------------------------------------------------------------------------	.Z80
+;
+PRTHLP::
+	LD (HLPSTK),SP	; SAVE STK PT
+	XOR A
+	LD (FCANCEL),A	; RESET CANCEL FLAG
+	LD A,C		;
+	LD (ENDERL),A	; SAVE BLANK LINE CODE
+	LD C,0
+	CALÌ VTABRÄ##	» REAÄ NAMÅ TABLÅ BASÅ ADDRESS
+	LD (HLPPTR),HL
+;
+	CALL PRTHD	; SEND PRINT MESSAGE
+PHLP0:	LD B,HEADLN	; SEND 4 BLANK LINES AT THE BEGINNING
+	CALL MCRLF
+;
+	LD HL,(HLPPTR)
+	LD B,H		; BC = START OF VRAM TEXT TO BE PRINTED
+	LD C,L
+;
+PHLP3:	LD HL,HLPLN-1	; LENGTH OF ONE PAGE (WE DON'T PRINT THE LAST LINE)
+	LD E,LINELN
+PHLP1:	CALL VRAMRD##
+	LD D,A
+	PUSH HL
+	PUSH DE		; END OF LINE COUNTER
+	PUSH BC
+	CALL PRTC	; PRINT THE CHARACTER...
+	POP BC
+	POP DE
+	POP HL
+	INC BC		; NEXT CHAR TO READ FROM VRAM
+	DEC E		; LENGTH OF LINE-1
+	CALL Z,PSNL	; SET NEW LINE AND DECREMENT LINE CONTER
+	LD A,L
+	OR H		; CHECK END OF PAGE
+	JR NZ,PHLP1
+;
+PEND:	LD A,(ENDERL)	; GET NUMBER OF BLANK LINE TO SEND
+	OR A
+	JR Z,PRTFF
+	LD B,A
+	CALL MCRLF
+	JR PEND1
+;
+PRTFF:	LD D,FF		; SEND A FORM FEED
+	CALL PRTC
+PEND1:	CALL PRTFT	; RESTORE LAST LINE ON SCREEN
+	LD SP,(HLPSTK)	; RESTORE OLD STACK PTR.
+	LD A,(FCANCEL)	
+	RRC	A	; SET THE CARRY FLAG
+	RET
+;
+PSNL:	LD E,LINELN	; SET LINE LENGTH AND DEC LINE COUNTER
+	DEC HL
+	CALL PCRLF
+	RET
+;
+;
+;	SEND A PRINT MESSAGE ON CURRENT HELP SCREEN
+;
+PRTHD:	LD HL,(HLPPTR)	; TAKE ADDRESS OF BEGINNING OF NAME TABLE
+	LD DE,HLPLN*LINELN-LINELN ; AND FIND LAST LINE
+	ADD HL,DE
+	LD (MSSRC),HL
+	LD DE,SAVBUF	; SAVE LAST LINE ON SAVE BUFFER
+	LD C,LINELN
+	CALL FASTD8##
+;
+	LD HL,(MSSRC)	; SEND PRINT MESSAGE ON LAST LINE OF SCREEN
+	LD DE,PRNMSG
+	LD C,32		; LENGTH OF MESSAGE
+	CALL VRAML8##
+	RET
+;
+PRTFT:	LD HL,(MSSRC)	; RESTORE LAST LINE OF HELP ON SCREEN
+	LD DE,SAVBUF
+	LD C,LINELN
+	CALL VRAML8##
+	RET
+;
+MCRLF:	PUSH AF
+MCRLF1:	CALL PCRLF	; MULTIPLE CR LF
+	DJNZ MCRLF1
+	POP AF
+	RET
+;
+;
+PCRLF:	PUSH HL		; SEND CR-LF
+	PUSH DE
+	PUSH BC
+	LD D,CR
+	CALL PRTC
+	LD D,LF
+	CALL PRTC
+	POP BC
+	POP DE
+	POP HL
+	RET
+;
+;
+; CHECK IF DEVICE IS READY AND OUTPUT CHARACTER TO DEVICE
+; IF DEVICE IS NOT READY YOU CAN CANCEL THE PRINTING AT ANYTIME...
+;
+PRTC:	LD (STKSV),SP	; SAVE SP
+	PUSH DE
+PRTB:	LD C,0A4H	; PRINTER DEVICE READY ?
+	LD E,02
+	CALL 08
+	JR NZ,PRTRS
+;
+	CALL NABUCHR	; CHARACTER TYPED = ESCAPE ?
+	CP 01BH
+	JR NZ,PRTB	; IF NO RELOOP
+;
+	LD SP,(STKSV)	; RESTORE OLD SP
+	LD A,1
+	LD (FCANCEL),A	; SET CANCEL FLAG
+	JR PEND1
+	 
+PRTRS:	POP DE		; WE ARE READY TO PRINT
+	LD C,0A5H
+	LD E,02
+	CALL 08
+	RET
+;
+;	IF THE FOLLOWING FUNCTIONS ARE ALREADY IN YOUR PROGRAM
+;	JUST ERASE THEM...
+;
+NABUCHR::
+	PUSH HL		; READ A CHARACTER ON THE KEYBOARD
+	PUSH DE
+	PUSH BC
+;
+	LD C,0A0H	; CHECK IF DEVICE IS READY
+	LD E,01
+	CALL 08
+	AND A
+	JR NZ,NABU1
+;
+	LD A,0
+NABU2:	POP BC
+	POP DE
+	POP HL
+	RET
+;
+NABU1:	LD C,0A1H	; READ A CHARACTER
+	LD E,1
+	CALL 08
+	JR NABU2
+;
+; 
+;
+MULT:	XOR A		; HL = BC * DE (IN ROM ON HDOS)
+	PUSH AF
+	LD HL,0
+MULT1:	LD A,B
+	RRA
+	LD B,A
+	LD A,C
+	RRA
+	LD C,A
+	JR NC,MULT2
+	ADD HL,DE
+	JR NC,MULT2
+	POP AF
+	INC A
+	PUSH AF
+MULT2:	LD A,B
+	OR C
+	JR Z,MULT3
+	EX DE,HL
+	ADD HL,HL
+	EX DE,HL
+	JR NC,MULT1
+	POP AF
+	INC A
+	PUSH AF
+	JR MULT1
+MULT3:	POP AF
+	RET
+;
+	END
+
