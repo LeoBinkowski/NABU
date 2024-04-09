@@ -1,9 +1,0 @@
-;	This program is used to force the NABU 1100 to do a cold boot
-;	after using MCPXSUB or any other program to clear everything
-;	up.
-;
-;
-START::	JP	0FC00H		;That is it folks
-;
-	END	START
-
